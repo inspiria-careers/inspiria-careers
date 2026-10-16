@@ -3,13 +3,19 @@ import React, { useState, useEffect } from "react";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useSite } from "@/contexts/SiteContext";
+import ServiceDetailModal from "@/components/ServiceDetailModal";
+import { ServiceDetail, getServiceDetail } from "@/services/serviceDetailService";
 
 export default function HeroSlider() {
   const { settings } = useSite();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
 
-  // Quick Information Modal States
+  // Service Detail Modal States
+  const [activeService, setActiveService] = useState<ServiceDetail | null>(null);
+  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
+
+  // Quick Information / Booking Modal States
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTrack, setSelectedTrack] = useState("e-Counselling Admissions (IIT / NEET / CUET)");
   const [formData, setFormData] = useState({
@@ -28,12 +34,12 @@ export default function HeroSlider() {
   const totalSlides = 3;
 
   useEffect(() => {
-    if (!isPlaying || modalOpen) return;
+    if (!isPlaying || modalOpen || isServiceModalOpen) return;
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % totalSlides);
     }, 6000);
     return () => clearInterval(interval);
-  }, [isPlaying, modalOpen]);
+  }, [isPlaying, modalOpen, isServiceModalOpen]);
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -50,7 +56,17 @@ export default function HeroSlider() {
     setIsPlaying(!isPlaying);
   };
 
+  // Open Service Detail Modal
+  const handleOpenServiceModal = async (serviceId: string) => {
+    setIsPlaying(false);
+    const detail = await getServiceDetail(serviceId);
+    setActiveService(detail);
+    setIsServiceModalOpen(true);
+  };
+
+  // Open Consultation Booking Modal
   const handleOpenModal = (trackTitle: string) => {
+    setIsPlaying(false);
     setSelectedTrack(trackTitle);
     setSubmitted(false);
     setFormError("");
@@ -60,6 +76,7 @@ export default function HeroSlider() {
   const handleCloseModal = () => {
     setModalOpen(false);
     setSubmitted(false);
+    setIsPlaying(true);
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -78,7 +95,7 @@ export default function HeroSlider() {
         phone: formData.phone,
         email: formData.email || "Not Provided",
         category: `${selectedTrack} (${formData.targetExam})`,
-        message: `[Quick Home Slider Inquiry]\nClass/Stream: ${formData.classStream}\nTarget Exam: ${formData.targetExam}\nPreferred Mode: ${formData.mode}\nNotes: ${formData.message || "None"}`,
+        message: `[Inquiry via Portal Slide / Service Modal]\nClass/Stream: ${formData.classStream}\nTarget Exam: ${formData.targetExam}\nPreferred Mode: ${formData.mode}\nNotes: ${formData.message || "None"}`,
         createdAt: new Date().toISOString(),
         read: false,
       };
@@ -123,21 +140,53 @@ export default function HeroSlider() {
             <div className="gov-slide-branch left">
               <h3 className="branch-title">{settings.slide1LeftTitle || "Examination Management Services"}</h3>
               <div className="flow-items">
-                <div className="flow-item">
+                <div
+                  className="flow-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("exam-provisioning");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-text">
                     Examination Provisioning, Registration &amp; Fee Payment
                   </div>
                   <div className="flow-icon flow-pink">🪙</div>
                 </div>
-                <div className="flow-item">
+                <div
+                  className="flow-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("data-correction");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-text">Data Correction and Verification</div>
                   <div className="flow-icon flow-blue">✅</div>
                 </div>
-                <div className="flow-item">
+                <div
+                  className="flow-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("admit-card");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-text">E-Admit Card &amp; Schedule</div>
                   <div className="flow-icon flow-orange">📇</div>
                 </div>
-                <div className="flow-item">
+                <div
+                  className="flow-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("results-pub");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-text">Answer Key / Results Publication</div>
                   <div className="flow-icon flow-brown">📑</div>
                 </div>
@@ -215,21 +264,53 @@ export default function HeroSlider() {
             <div className="gov-slide-branch right">
               <h3 className="branch-title">{settings.slide1RightTitle || "Counselling & Admission Services"}</h3>
               <div className="flow-items">
-                <div className="flow-item right-aligned">
+                <div
+                  className="flow-item right-aligned"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("seat-matrix");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-icon flow-teal">🏛️</div>
                   <div className="flow-text">Seat Matrix Management</div>
                 </div>
-                <div className="flow-item right-aligned">
+                <div
+                  className="flow-item right-aligned"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("institute-selection");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-icon flow-orange">💻</div>
                   <div className="flow-text">
                     Institute &amp; Course Selection / Multiple Round Seat Allotment
                   </div>
                 </div>
-                <div className="flow-item right-aligned">
+                <div
+                  className="flow-item right-aligned"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("allotment-letter");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-icon flow-purple">✉️</div>
                   <div className="flow-text">Admission &amp; Allotment Letter</div>
                 </div>
-                <div className="flow-item right-aligned">
+                <div
+                  className="flow-item right-aligned"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("doc-verification");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-icon flow-green">📂</div>
                   <div className="flow-text">
                     Online Document Verification &amp; Institute Admission
@@ -251,19 +332,51 @@ export default function HeroSlider() {
             <div className="gov-slide-branch left">
               <h3 className="branch-title">{settings.slide2LeftTitle || "Personalized Counseling Verticals"}</h3>
               <div className="flow-items">
-                <div className="flow-item">
+                <div
+                  className="flow-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("psychometric-testing");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-text">Scientific Psychometric &amp; Stream Testing</div>
                   <div className="flow-icon flow-blue">🧠</div>
                 </div>
-                <div className="flow-item">
+                <div
+                  className="flow-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("anxiety-relief");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-text">Adolescent Psychology &amp; Exam Anxiety Relief</div>
                   <div className="flow-icon flow-pink">🌿</div>
                 </div>
-                <div className="flow-item">
+                <div
+                  className="flow-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("parent-harmony");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-text">Parent-Child Communication Harmony</div>
                   <div className="flow-icon flow-orange">👨‍👩‍👧</div>
                 </div>
-                <div className="flow-item">
+                <div
+                  className="flow-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("exam-blueprints");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-text">Board &amp; Competitive Exam Blueprints</div>
                   <div className="flow-icon flow-green">🎯</div>
                 </div>
@@ -350,19 +463,47 @@ export default function HeroSlider() {
             <div className="gov-slide-branch right">
               <h3 className="branch-title">{settings.slide2RightTitle || "Direct Student Solutions"}</h3>
               <div className="flow-items">
-                <div className="flow-item right-aligned">
+                <div
+                  className="flow-item right-aligned"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenModal("Real-time Slot Booking & Calendar Schedule");
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="flow-icon flow-teal">📅</div>
                   <div className="flow-text">Real-time Slot Booking &amp; Calendar Schedule</div>
                 </div>
-                <div className="flow-item right-aligned">
+                <div
+                  className="flow-item right-aligned"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenModal("Personalized Aptitude & Career Roadmap Report");
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="flow-icon flow-purple">📑</div>
                   <div className="flow-text">Personalized Aptitude &amp; Career Roadmap Report</div>
                 </div>
-                <div className="flow-item right-aligned">
+                <div
+                  className="flow-item right-aligned"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenModal("Direct UPI / QR Gateway & Instant Confirmation");
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="flow-icon flow-orange">💳</div>
                   <div className="flow-text">Direct UPI / QR Gateway &amp; Instant Confirmation</div>
                 </div>
-                <div className="flow-item right-aligned">
+                <div
+                  className="flow-item right-aligned"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenModal("Direct Post-Session WhatsApp Followup Support");
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="flow-icon flow-green">💬</div>
                   <div className="flow-text">Direct Post-Session WhatsApp Followup Support</div>
                 </div>
@@ -382,19 +523,51 @@ export default function HeroSlider() {
             <div className="gov-slide-branch left">
               <h3 className="branch-title">{settings.slide3LeftTitle || "Study Abroad & Global Admissions"}</h3>
               <div className="flow-items">
-                <div className="flow-item">
+                <div
+                  className="flow-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("ivy-league");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-text">Ivy League &amp; Top 100 University Shortlisting</div>
                   <div className="flow-icon flow-blue">🏛️</div>
                 </div>
-                <div className="flow-item">
+                <div
+                  className="flow-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("sop-evaluation");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-text">SOP, Essay &amp; Resume Profile Evaluation</div>
                   <div className="flow-icon flow-pink">✍️</div>
                 </div>
-                <div className="flow-item">
+                <div
+                  className="flow-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("exam-blueprints");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-text">SAT, GRE, GMAT &amp; IELTS Strategy</div>
                   <div className="flow-icon flow-orange">📚</div>
                 </div>
-                <div className="flow-item">
+                <div
+                  className="flow-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenServiceModal("scholarship-apps");
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view details, guidelines & prerequisites"
+                >
                   <div className="flow-text">Merit &amp; Need-Based Scholarship Applications</div>
                   <div className="flow-icon flow-green">💰</div>
                 </div>
@@ -466,19 +639,47 @@ export default function HeroSlider() {
             <div className="gov-slide-branch right">
               <h3 className="branch-title">{settings.slide3RightTitle || "End-To-End Global Support"}</h3>
               <div className="flow-items">
-                <div className="flow-item right-aligned">
+                <div
+                  className="flow-item right-aligned"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenModal("Letter of Recommendation (LOR) Structuring");
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="flow-icon flow-teal">📄</div>
                   <div className="flow-text">Letter of Recommendation (LOR) Structuring</div>
                 </div>
-                <div className="flow-item right-aligned">
+                <div
+                  className="flow-item right-aligned"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenModal("Embassy & Visa Mock Interview Training");
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="flow-icon flow-purple">🎙️</div>
                   <div className="flow-text">Embassy &amp; Visa Mock Interview Training</div>
                 </div>
-                <div className="flow-item right-aligned">
+                <div
+                  className="flow-item right-aligned"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenModal("Pre-Departure Briefing & Campus Settlement");
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="flow-icon flow-orange">🏫</div>
                   <div className="flow-text">Pre-Departure Briefing &amp; Campus Settlement</div>
                 </div>
-                <div className="flow-item right-aligned">
+                <div
+                  className="flow-item right-aligned"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenModal("Global Alumni Network Mentorship Access");
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="flow-icon flow-green">🤝</div>
                   <div className="flow-text">Global Alumni Network Mentorship Access</div>
                 </div>
@@ -530,7 +731,24 @@ export default function HeroSlider() {
         </div>
       </div>
 
-      {/* ── INTERACTIVE REGISTRATION & INFORMATION MODAL ── */}
+      {/* ── MODAL 1: INTERACTIVE SERVICE DETAIL MODAL (WITH IN-MODAL ADMIN/PRINCIPAL MAM EDITING) ── */}
+      <ServiceDetailModal
+        isOpen={isServiceModalOpen}
+        service={activeService}
+        onClose={() => {
+          setIsServiceModalOpen(false);
+          setIsPlaying(true);
+        }}
+        onBookGuidance={(service) => {
+          setIsServiceModalOpen(false);
+          handleOpenModal(service.title);
+        }}
+        onServiceUpdated={(updated) => {
+          setActiveService(updated);
+        }}
+      />
+
+      {/* ── MODAL 2: REGISTRATION & CONSULTATION INQUIRY MODAL ── */}
       {modalOpen && (
         <div
           style={{
