@@ -32,6 +32,7 @@ interface AuthContextType {
   signUpWithEmail: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   demoLogin: (role: UserRole) => void;
+  loginWithStaffPasscode: (role: "admin" | "principal", passcode: string) => { success: boolean; error?: string };
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -44,6 +45,9 @@ const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@inspiriacare
 const PRINCIPAL_EMAILS = (process.env.NEXT_PUBLIC_PRINCIPAL_EMAIL || "principal@inspiriacareers.com")
   .split(",")
   .map((e) => e.trim().toLowerCase());
+
+export const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "Admin@Inspiria2025";
+export const PRINCIPAL_PASSWORD = process.env.NEXT_PUBLIC_PRINCIPAL_PASSWORD || "Principal@Inspiria2025";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | User | null>(null);
@@ -80,12 +84,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Check for existing demo session in localStorage
+    // Check for existing authenticated staff session in localStorage
     if (typeof window !== "undefined") {
-      const savedDemo = localStorage.getItem("insersia_demo_auth");
-      if (savedDemo) {
+      // Clear obsolete demo bypass
+      localStorage.removeItem("insersia_demo_auth");
+      const savedStaff = localStorage.getItem("insersia_staff_auth");
+      if (savedStaff) {
         try {
-          const parsed = JSON.parse(savedDemo);
+          const parsed = JSON.parse(savedStaff);
           setUser(parsed);
           setRole(parsed.role || "user");
           setLoading(false);
@@ -102,8 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setRole(r);
           await ensureUserDoc(u);
         } else {
-          // If no Firebase user and no demo user
-          if (typeof window !== "undefined" && !localStorage.getItem("insersia_demo_auth")) {
+          // If no Firebase user and no authenticated staff session
+          if (typeof window !== "undefined" && !localStorage.getItem("insersia_staff_auth")) {
             setUser(null);
             setRole(null);
           }
@@ -117,56 +123,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
-    if (typeof window !== "undefined") localStorage.removeItem("insersia_demo_auth");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("insersia_demo_auth");
+      localStorage.removeItem("insersia_staff_auth");
+    }
     const result = await signInWithPopup(auth, googleProvider);
     await ensureUserDoc(result.user);
   };
 
+  const loginWithStaffPasscode = (
+    targetRole: "admin" | "principal",
+    passcode: string
+  ): { success: boolean; error?: string } => {
+    const expected = targetRole === "admin" ? ADMIN_PASSWORD : PRINCIPAL_PASSWORD;
+    if (!passcode || passcode.trim() !== expected.trim()) {
+      return {
+        success: false,
+        error: `Incorrect security password for ${targetRole === "admin" ? "Master Admin" : "Principal Ma'am"}. Access denied.`,
+      };
+    }
+
+    const staffUser: AppUser = {
+      uid: targetRole === "admin" ? "staff-admin-master-id" : "staff-principal-counselor-id",
+      email: targetRole === "admin" ? ADMIN_EMAILS[0] : PRINCIPAL_EMAILS[0],
+      displayName: targetRole === "admin" ? "System Administrator" : "Principal Ma'am",
+      photoURL: "/logo.jpg",
+      role: targetRole,
+      isDemo: false,
+    };
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("insersia_staff_auth", JSON.stringify(staffUser));
+      localStorage.removeItem("insersia_demo_auth");
+    }
+
+    setUser(staffUser);
+    setRole(targetRole);
+    setLoading(false);
+    return { success: true };
+  };
+
   const signInWithEmail = async (email: string, password: string) => {
-    if (typeof window !== "undefined") localStorage.removeItem("insersia_demo_auth");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("insersia_demo_auth");
+      localStorage.removeItem("insersia_staff_auth");
+    }
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check if logging in as Admin or Principal with their dedicated staff password
+    if (ADMIN_EMAILS.includes(cleanEmail) && password.trim() === ADMIN_PASSWORD.trim()) {
+      loginWithStaffPasscode("admin", password);
+      return;
+    }
+    if (PRINCIPAL_EMAILS.includes(cleanEmail) && password.trim() === PRINCIPAL_PASSWORD.trim()) {
+      loginWithStaffPasscode("principal", password);
+      return;
+    }
+
     await signInWithEmailAndPassword(auth, email, password);
   };
 
   const signUpWithEmail = async (email: string, password: string, name: string) => {
-    if (typeof window !== "undefined") localStorage.removeItem("insersia_demo_auth");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("insersia_demo_auth");
+      localStorage.removeItem("insersia_staff_auth");
+    }
     const result = await createUserWithEmailAndPassword(auth, email, password);
     await ensureUserDoc(result.user, { name });
     await sendEmailVerification(result.user);
   };
 
   const demoLogin = (targetRole: UserRole) => {
-    let mockUser: AppUser;
-    if (targetRole === "principal") {
-      mockUser = {
-        uid: "demo-principal-id",
-        email: "principal@insersia.com",
-        displayName: "Principal Ma'am",
-        photoURL: "/logo.jpg",
-        role: "principal",
-        isDemo: true,
-      };
-    } else if (targetRole === "admin") {
-      mockUser = {
-        uid: "demo-admin-id",
-        email: "admin@insersia.com",
-        displayName: "System Administrator",
-        photoURL: "/logo.jpg",
-        role: "admin",
-        isDemo: true,
-      };
-    } else {
-      mockUser = {
-        uid: "demo-student-id",
-        email: "student@insersia.com",
-        displayName: "Aarav Sharma (Student)",
-        photoURL: "",
-        role: "user",
-        isDemo: true,
-      };
+    if (targetRole === "admin" || targetRole === "principal") {
+      // Demo login requires password verification
+      return;
     }
-
+    const mockUser: AppUser = {
+      uid: "demo-student-id",
+      email: "student@insersia.com",
+      displayName: "Aarav Sharma (Student)",
+      photoURL: "",
+      role: "user",
+      isDemo: true,
+    };
     if (typeof window !== "undefined") {
-      localStorage.setItem("insersia_demo_auth", JSON.stringify(mockUser));
+      localStorage.setItem("insersia_staff_auth", JSON.stringify(mockUser));
     }
     setUser(mockUser);
     setRole(targetRole);
@@ -176,6 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("insersia_demo_auth");
+      localStorage.removeItem("insersia_staff_auth");
     }
     try {
       await signOut(auth);
@@ -195,6 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUpWithEmail,
         logout,
         demoLogin,
+        loginWithStaffPasscode,
       }}
     >
       {children}

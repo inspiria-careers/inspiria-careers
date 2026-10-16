@@ -63,7 +63,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!loading && (!user || role !== "admin")) {
-      router.push("/login");
+      router.push("/login?portal=admin");
     }
   }, [user, role, loading, router]);
 

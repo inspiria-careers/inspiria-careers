@@ -141,7 +141,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!loading && (!user || (role !== "principal" && role !== "admin"))) {
-      router.push("/login");
+      router.push("/login?portal=principal");
     }
   }, [user, role, loading, router]);
 
