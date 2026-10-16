@@ -151,10 +151,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {}
     }
 
-    // 2. Fetch fresh from Firestore to allow immediate cross-device password changes
+    // 2. Fetch fresh from Firestore to allow immediate cross-device password changes (with 2s timeout)
     try {
-      const snap = await getDoc(doc(db, "settings", "site"));
-      if (snap.exists()) {
+      const snap = (await Promise.race([
+        getDoc(doc(db, "settings", "site")),
+        new Promise<null>((_, rej) => setTimeout(() => rej(new Error("Timeout")), 2000)),
+      ])) as any;
+      if (snap && snap.exists && snap.exists()) {
         const data = snap.data();
         if (targetRole === "admin" && data.adminPassword) expected = data.adminPassword;
         if (targetRole === "principal" && data.principalPassword) expected = data.principalPassword;

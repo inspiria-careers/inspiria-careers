@@ -281,7 +281,7 @@ const defaultSettings: SiteSettings = {
   accreditationSub: "राष्ट्रीय मार्गदर्शन प्रकोष्ठ",
   tagline: "Stop Regretting, Start Solving — Career Mentorship for the Next Generation",
   subtagline: "Empowering Students to Become Independent Debuggers of Their Career, Education & Life",
-  developedByText: "Designed & Developed by Atul Sharma",
+  developedByText: "Designed & Developed by GAURAV SHUKLA",
   developedByLink: "https://github.com",
   copyrightText: "All rights reserved. Designed for Excellence in Student Mentorship & Admission Transparency.",
 
@@ -444,37 +444,83 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<SiteSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
 
+  // Cross-tab real-time sync listener
   useEffect(() => {
-    // 1. Load from localStorage if present
+    if (typeof window === "undefined") return;
+
+    const handleSync = () => {
+      try {
+        const cached = localStorage.getItem(STORAGE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.developedByText && parsed.developedByText.includes("Atul Sharma")) {
+            parsed.developedByText = "Designed & Developed by GAURAV SHUKLA";
+          }
+          setSettings((prev) => ({ ...prev, ...parsed }));
+        }
+      } catch {}
+    };
+
+    window.addEventListener("storage", handleSync);
+    window.addEventListener("site_settings_updated", handleSync);
+    return () => {
+      window.removeEventListener("storage", handleSync);
+      window.removeEventListener("site_settings_updated", handleSync);
+    };
+  }, []);
+
+  useEffect(() => {
+    // 1. Load from localStorage if present & automatically migrate legacy data
     if (typeof window !== "undefined") {
-      const cached = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("insersia_site_settings");
+      try {
+        localStorage.removeItem("insersia_site_settings"); // Clean up old obsolete key
+      } catch {}
+
+      const cached = localStorage.getItem(STORAGE_KEY);
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          // If cached site name still has the old name, override it with the actual name
+          // If cached site name still has old placeholder, override it
           if (!parsed.siteName || parsed.siteName.toLowerCase().includes("insersia")) {
             parsed.siteName = "INSPIRIA CAREERS";
           }
-          setSettings((prev) => ({
+          // Automatically upgrade old developer attribution cache to Gaurav Shukla
+          if (!parsed.developedByText || parsed.developedByText.includes("Atul Sharma")) {
+            parsed.developedByText = "Designed & Developed by GAURAV SHUKLA";
+          }
+
+          const upgraded = {
             ...defaultSettings,
-            ...prev,
             ...parsed,
             siteName: parsed.siteName || "INSPIRIA CAREERS",
-            siteLogo: parsed.siteLogo || prev.siteLogo || defaultSettings.siteLogo,
+            siteLogo: parsed.siteLogo || defaultSettings.siteLogo,
+            developedByText: parsed.developedByText || defaultSettings.developedByText,
             services: parsed.services && parsed.services.length > 0 ? parsed.services : defaultServices,
             navLinks: parsed.navLinks && parsed.navLinks.length > 0 ? parsed.navLinks : defaultNavLinks,
             homeOptions: parsed.homeOptions && parsed.homeOptions.length > 0 ? parsed.homeOptions : defaultHomeOptions,
-          }));
+          };
+
+          setSettings(upgraded);
+          // Save the upgraded cache back so stale cache never persists
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(upgraded));
         } catch {}
       }
     }
 
-    // 2. Try fetching latest settings from Firestore
+    // 2. Try fetching latest settings from Firestore with a 2.5s timeout guarantee
     const fetchRemote = async () => {
       try {
-        const snap = await getDoc(doc(db, "settings", "site"));
-        if (snap.exists()) {
+        const timeoutPromise = new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error("Firestore timeout")), 2500)
+        );
+        const fetchPromise = getDoc(doc(db, "settings", "site"));
+
+        const snap = (await Promise.race([fetchPromise, timeoutPromise])) as any;
+        if (snap && snap.exists && snap.exists()) {
           const remoteData = snap.data() as Partial<SiteSettings>;
+          if (remoteData.developedByText && remoteData.developedByText.includes("Atul Sharma")) {
+            remoteData.developedByText = "Designed & Developed by GAURAV SHUKLA";
+          }
           setSettings((prev) => {
             const merged = { ...prev, ...remoteData };
             if (typeof window !== "undefined") {
@@ -484,7 +530,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
           });
         }
       } catch {
-        // Fallback gracefully to localStorage or defaults
+        // Fallback gracefully to localStorage or defaults without blocking the app
       } finally {
         setLoading(false);
       }
@@ -497,16 +543,24 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     const updated = { ...settings, ...newSettings };
     setSettings(updated);
 
-    // Save to localStorage immediately
+    // Save to localStorage immediately and broadcast
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent("site_settings_updated", { detail: updated }));
+      try {
+        window.dispatchEvent(
+          new StorageEvent("storage", { key: STORAGE_KEY, newValue: JSON.stringify(updated) })
+        );
+      } catch {}
     }
 
-    // Attempt to persist to Firestore
+    // Attempt to persist to Firestore with a hard 2-second timeout so UI never hangs
     try {
-      await setDoc(doc(db, "settings", "site"), updated, { merge: true });
+      const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 2000));
+      const firestorePromise = setDoc(doc(db, "settings", "site"), updated, { merge: true });
+      await Promise.race([firestorePromise, timeoutPromise]);
     } catch {
-      // If Firestore not configured, local state is still persisted
+      // Local state and localStorage are already persisted
     }
   };
 

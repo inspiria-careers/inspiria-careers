@@ -126,9 +126,12 @@ export default function Footer() {
           <p>© {new Date().getFullYear()} {settings.siteName} - {settings.divisionTitle || "e-Counselling Division"}. {settings.copyrightText || "All rights reserved."}</p>
           {settings.developedByText && (
             <p style={{ color: "#94a3b8", fontSize: "0.88rem" }}>
-              Developed by{" "}
+              {settings.developedByText.trim().toLowerCase().startsWith("designed") ||
+              settings.developedByText.trim().toLowerCase().startsWith("developed")
+                ? null
+                : "Developed by "}
               <a
-                href={settings.developedByLink || "#"}
+                href={settings.developedByLink || "https://github.com"}
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: "#009ea9", fontWeight: 700, textDecoration: "underline" }}
