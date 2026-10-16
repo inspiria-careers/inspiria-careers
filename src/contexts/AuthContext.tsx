@@ -8,6 +8,7 @@ import {
   signOut,
   onAuthStateChanged,
   sendEmailVerification,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "@/lib/firebase";
@@ -32,7 +33,8 @@ interface AuthContextType {
   signUpWithEmail: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   demoLogin: (role: UserRole) => void;
-  loginWithStaffPasscode: (role: "admin" | "principal", passcode: string) => { success: boolean; error?: string };
+  loginWithStaffPasscode: (role: "admin" | "principal", passcode: string) => Promise<{ success: boolean; error?: string }>;
+  sendCandidatePasswordReset: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -131,11 +133,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await ensureUserDoc(result.user);
   };
 
-  const loginWithStaffPasscode = (
+  const loginWithStaffPasscode = async (
     targetRole: "admin" | "principal",
     passcode: string
-  ): { success: boolean; error?: string } => {
-    const expected = targetRole === "admin" ? ADMIN_PASSWORD : PRINCIPAL_PASSWORD;
+  ): Promise<{ success: boolean; error?: string }> => {
+    let expected = targetRole === "admin" ? ADMIN_PASSWORD : PRINCIPAL_PASSWORD;
+
+    // 1. Check cached site settings (configured via Admin Panel)
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("inspiria_site_settings") || localStorage.getItem("insersia_site_settings");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (targetRole === "admin" && parsed.adminPassword) expected = parsed.adminPassword;
+          if (targetRole === "principal" && parsed.principalPassword) expected = parsed.principalPassword;
+        }
+      } catch {}
+    }
+
+    // 2. Fetch fresh from Firestore to allow immediate cross-device password changes
+    try {
+      const snap = await getDoc(doc(db, "settings", "site"));
+      if (snap.exists()) {
+        const data = snap.data();
+        if (targetRole === "admin" && data.adminPassword) expected = data.adminPassword;
+        if (targetRole === "principal" && data.principalPassword) expected = data.principalPassword;
+      }
+    } catch {}
+
     if (!passcode || passcode.trim() !== expected.trim()) {
       return {
         success: false,
@@ -171,16 +196,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cleanEmail = email.trim().toLowerCase();
 
     // Check if logging in as Admin or Principal with their dedicated staff password
-    if (ADMIN_EMAILS.includes(cleanEmail) && password.trim() === ADMIN_PASSWORD.trim()) {
-      loginWithStaffPasscode("admin", password);
-      return;
+    if (ADMIN_EMAILS.includes(cleanEmail)) {
+      const res = await loginWithStaffPasscode("admin", password);
+      if (res.success) return;
     }
-    if (PRINCIPAL_EMAILS.includes(cleanEmail) && password.trim() === PRINCIPAL_PASSWORD.trim()) {
-      loginWithStaffPasscode("principal", password);
-      return;
+    if (PRINCIPAL_EMAILS.includes(cleanEmail)) {
+      const res = await loginWithStaffPasscode("principal", password);
+      if (res.success) return;
     }
 
     await signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const sendCandidatePasswordReset = async (email: string) => {
+    if (!email) throw new Error("Please enter your registered email address.");
+    await sendPasswordResetEmail(auth, email.trim());
   };
 
   const signUpWithEmail = async (email: string, password: string, name: string) => {
@@ -238,6 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         demoLogin,
         loginWithStaffPasscode,
+        sendCandidatePasswordReset,
       }}
     >
       {children}

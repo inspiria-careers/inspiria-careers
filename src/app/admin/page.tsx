@@ -54,8 +54,10 @@ export default function AdminPage() {
   // Settings form
   const [settingsForm, setSettingsForm] = useState({ ...settings });
   const [settingsTab, setSettingsTab] = useState<
-    "dev" | "branding" | "slider" | "ticker" | "goals" | "counselor" | "about" | "stats" | "services" | "payment" | "contact" | "social" | "cta" | "navigation" | "homeoptions"
+    "dev" | "branding" | "slider" | "ticker" | "goals" | "counselor" | "about" | "stats" | "services" | "payment" | "contact" | "social" | "cta" | "navigation" | "homeoptions" | "security"
   >("dev");
+  const [showPrincipalPass, setShowPrincipalPass] = useState(false);
+  const [showAdminPass, setShowAdminPass] = useState(false);
 
   useEffect(() => {
     setSettingsForm({ ...settings });
@@ -724,6 +726,7 @@ export default function AdminPage() {
               >
                 {[
                   { id: "dev", label: "Developer & Attribution", icon: "🚀" },
+                  { id: "security", label: "Security & Passwords", icon: "🔐" },
                   { id: "branding", label: "Portal Branding & Header", icon: "🏛️" },
                   { id: "navigation", label: "Navbar Options & Menu", icon: "🧭" },
                   { id: "homeoptions", label: "Home Page Options", icon: "📑" },
@@ -2239,6 +2242,148 @@ export default function AdminPage() {
                         onChange={(e) => setSettingsForm({ ...settingsForm, ctaDesc: e.target.value })}
                         placeholder="Enter description text..."
                       />
+                    </div>
+                  </div>
+                )}
+
+                {/* ── 15. SUB-TAB: SECURITY & PASSWORD MANAGEMENT ── */}
+                {settingsTab === "security" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                    <div style={{ background: "rgba(0,158,169,0.08)", border: "1px solid #009ea9", borderRadius: 8, padding: "1rem" }}>
+                      <h4 style={{ color: "#009ea9", margin: "0 0 0.4rem 0" }}>🔐 Portal Access &amp; Security Password Management</h4>
+                      <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0, lineHeight: 1.5 }}>
+                        As the Master Administrator, you have full control over portal security. You can change the authorization password for Principal Ma&apos;am as well as your own Master Admin password. When saved, the new passwords take effect immediately across all devices.
+                      </p>
+                    </div>
+
+                    {/* Principal Ma'am Password Card */}
+                    <div
+                      style={{
+                        background: "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(201,168,76,0.4)",
+                        borderRadius: 12,
+                        padding: "1.25rem",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <span style={{ fontSize: "1.5rem" }}>👩‍🏫</span>
+                          <div>
+                            <h4 style={{ color: "var(--gold)", margin: 0, fontSize: "1rem" }}>Principal Ma&apos;am Counselor Password</h4>
+                            <span style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                              Required for Principal Ma&apos;am to access the Counselor Dashboard (/dashboard)
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#$";
+                            let randomPass = "Principal@";
+                            for (let i = 0; i < 4; i++) randomPass += chars.charAt(Math.floor(Math.random() * chars.length));
+                            setSettingsForm({ ...settingsForm, principalPassword: randomPass });
+                            setStatusMsg(`Generated new password for Principal Ma'am: ${randomPass}. Click 'Save Website Changes' to apply.`);
+                          }}
+                          className="btn btn-sm"
+                          style={{ background: "rgba(201,168,76,0.15)", color: "var(--gold)", border: "1px solid rgba(201,168,76,0.3)", fontSize: "0.78rem" }}
+                        >
+                          🎲 Generate New Password
+                        </button>
+                      </div>
+
+                      <div className="form-group" style={{ position: "relative" }}>
+                        <label className="form-label" style={{ fontWeight: 600 }}>Active Security Password for Principal Ma&apos;am</label>
+                        <div style={{ position: "relative" }}>
+                          <input
+                            type={showPrincipalPass ? "text" : "password"}
+                            className="form-input"
+                            value={settingsForm.principalPassword || ""}
+                            onChange={(e) => setSettingsForm({ ...settingsForm, principalPassword: e.target.value })}
+                            placeholder="Enter new password for Principal Ma'am..."
+                            style={{ paddingRight: "2.5rem", borderColor: "rgba(201,168,76,0.4)", fontSize: "0.95rem", letterSpacing: showPrincipalPass ? "normal" : "0.1em" }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPrincipalPass(!showPrincipalPass)}
+                            style={{
+                              position: "absolute",
+                              right: "0.75rem",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              background: "none",
+                              border: "none",
+                              color: "#94a3b8",
+                              cursor: "pointer",
+                              fontSize: "1rem",
+                              padding: "4px",
+                            }}
+                            title={showPrincipalPass ? "Hide password" : "Show password"}
+                          >
+                            {showPrincipalPass ? "👁️" : "🔒"}
+                          </button>
+                        </div>
+                        <small style={{ color: "#94a3b8", fontSize: "0.78rem", display: "block", marginTop: "0.3rem" }}>
+                          💡 If Principal Ma&apos;am forgets her password, you can change it here anytime and share the new password with her.
+                        </small>
+                      </div>
+                    </div>
+
+                    {/* Master Admin Password Card */}
+                    <div
+                      style={{
+                        background: "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(0,158,169,0.4)",
+                        borderRadius: 12,
+                        padding: "1.25rem",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <span style={{ fontSize: "1.5rem" }}>🛡️</span>
+                          <div>
+                            <h4 style={{ color: "#2dd4bf", margin: 0, fontSize: "1rem" }}>Master Administrator Password</h4>
+                            <span style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                              Required to enter this Master Admin Panel (/admin)
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="form-group" style={{ position: "relative" }}>
+                        <label className="form-label" style={{ fontWeight: 600 }}>Active Security Password for Master Admin</label>
+                        <div style={{ position: "relative" }}>
+                          <input
+                            type={showAdminPass ? "text" : "password"}
+                            className="form-input"
+                            value={settingsForm.adminPassword || ""}
+                            onChange={(e) => setSettingsForm({ ...settingsForm, adminPassword: e.target.value })}
+                            placeholder="Enter new password for Master Admin..."
+                            style={{ paddingRight: "2.5rem", borderColor: "rgba(0,158,169,0.4)", fontSize: "0.95rem", letterSpacing: showAdminPass ? "normal" : "0.1em" }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowAdminPass(!showAdminPass)}
+                            style={{
+                              position: "absolute",
+                              right: "0.75rem",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              background: "none",
+                              border: "none",
+                              color: "#94a3b8",
+                              cursor: "pointer",
+                              fontSize: "1rem",
+                              padding: "4px",
+                            }}
+                            title={showAdminPass ? "Hide password" : "Show password"}
+                          >
+                            {showAdminPass ? "👁️" : "🔒"}
+                          </button>
+                        </div>
+                        <small style={{ color: "#94a3b8", fontSize: "0.78rem", display: "block", marginTop: "0.3rem" }}>
+                          ⚠️ Note: Remember this password carefully. You can also configure it in your Vercel Environment Variables (<code>NEXT_PUBLIC_ADMIN_PASSWORD</code>).
+                        </small>
+                      </div>
                     </div>
                   </div>
                 )}

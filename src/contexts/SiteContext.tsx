@@ -155,6 +155,10 @@ export interface SiteSettings {
   bankAccountNumber: string;
   bankIfsc: string;
   paymentInstructions: string;
+
+  // 14. Staff Security & Passwords
+  principalPassword?: string;
+  adminPassword?: string;
 }
 
 const defaultServices: ServiceItem[] = [
@@ -414,6 +418,10 @@ const defaultSettings: SiteSettings = {
   bankIfsc: "HDFC0001234",
   paymentInstructions:
     "Please transfer the session fee using the UPI ID or scan the QR code. Enter the 12-digit UPI Reference / UTR Number below to confirm your appointment.",
+
+  // 14. Staff Security & Passwords
+  principalPassword: process.env.NEXT_PUBLIC_PRINCIPAL_PASSWORD || "Principal@Inspiria2025",
+  adminPassword: process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "Admin@Inspiria2025",
 };
 
 interface SiteContextType {
