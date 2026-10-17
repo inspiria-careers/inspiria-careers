@@ -6,12 +6,12 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "INSPIRIA CAREERS | Expert Career & Academic Guidance",
-  description: "INSPIRIA CAREERS provides expert career, academic, and admission counseling for students, parents, and professionals. Connect with our experienced counselor for personalized guidance.",
-  keywords: "counseling, career guidance, academic counseling, student counselor, Inspiria, Inspiria Careers",
+  title: "Inspiria Careers | Professional Counselling",
+  description: "Expert career and academic counselling. Book a session with our experienced counsellor today.",
+  keywords: "counselling, career guidance, academic counselling, student counsellor, Inspiria Careers",
   openGraph: {
-    title: "INSPIRIA CAREERS",
-    description: "Expert career and academic guidance for students, parents and professionals.",
+    title: "Inspiria Careers | Professional Counselling",
+    description: "Expert career and academic counselling.",
     type: "website",
   },
 };
@@ -20,12 +20,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/logo.jpg" />
+        <link rel="icon" href="/favicon.ico" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=Source+Sans+3:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         />
       </head>
       <body suppressHydrationWarning>

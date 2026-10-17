@@ -1,402 +1,181 @@
 "use client";
 import Link from "next/link";
-import Image from "next/image";
-import HeroSlider from "@/components/HeroSlider";
-import RenderIcon from "@/components/RenderIcon";
-import { useSite, defaultHomeOptions } from "@/contexts/SiteContext";
+import { useSite } from "@/contexts/SiteContext";
+import { t } from "@/translations";
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="empty-state">
+      <div className="empty-state-icon">✨</div>
+      <p className="empty-state-desc">{message}</p>
+    </div>
+  );
+}
 
 export default function HomePage() {
-  const { settings } = useSite();
-  const services = settings.services || [];
+  const { profile, services, loading, lang } = useSite();
 
-  const stats = [
-    { value: settings.studentsGuided, label: settings.studentsGuidedLabel || "Students Guided Nationwide" },
-    { value: settings.yearsExperience, label: settings.yearsExperienceLabel || "Years of Educational Service" },
-    { value: settings.successRate, label: settings.successRateLabel || "Admission & Career Success Rate" },
-    { value: settings.statMetric4Value || "100%", label: settings.statMetric4Label || "Personalized 1-on-1 Attention" },
-  ];
+  if (loading) {
+    return (
+      <main className="page-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="spinner" />
+      </main>
+    );
+  }
+
+  const hasProfile = profile.counsellorName || profile.counsellorBio;
+  const hasAnnouncement = !!profile.announcement;
 
   return (
-    <main style={{ background: "#f8fafc" }}>
-      {/* ── 1. HERO SLIDER BANNER (MATCHES SCREENSHOT LAYOUT & CONTROLS) ── */}
-      <HeroSlider />
-
-      {/* ── 2. LATEST ANNOUNCEMENT TICKER ── */}
-      <div className="gov-ticker-bar">
-        <span className="ticker-tag">{settings.tickerTag || "LATEST ANNOUNCEMENTS"}</span>
-        <div className="ticker-content">
-          {settings.tickerText || `📢 Admissions & Career Counseling 2026-27 Registrations Open · 🎯 Book 1-on-1 Direct Counseling Slot with ${settings.principalName} · 🧠 Free Psychometric Stream Assessment Available for Class 10 & 12 Students`}
+    <main className="page-wrapper">
+      {/* ── Announcement Ticker ── */}
+      {hasAnnouncement && (
+        <div className="ticker-bar" role="marquee" aria-label="Announcements">
+          <div className="container">
+            <div className="ticker-inner">{profile.announcement}&nbsp;&nbsp;&nbsp;&nbsp;{profile.announcement}</div>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* ── 3. MANDATE & INTRODUCTION SECTION (EXACT TEXT FROM SCREENSHOT) ── */}
-      <section className="mandate-section">
-        <div className="mandate-box">
-          <p>
-            {settings.mandateText || (
-              <>
-                The <strong>{settings.siteName.split(" ")[0]} eCounselling Solution</strong> is a robust and scalable system
-                designed to streamline and enhance the digital counselling process for academic and professional institutions
-                across the country. It provides end-to-end technical support and personalized mentorship services towards a
-                hassle-free transparent admission process. Under the guidance of <strong>{settings.principalName}</strong>,
-                it integrates advanced psychometric profiling and compassionate counseling to ensure secure, transparent,
-                and efficient guidance services for candidates, parents, and examination/admission boards.
-              </>
-            )}
-            {" "}
-            <Link href="/about" className="btn-view-more">
-              {settings.mandateBtnText || "View More →"}
-            </Link>
+      {/* ── Hero ── */}
+      <section className="hero" aria-labelledby="hero-title">
+        <div className="container">
+          <div className="hero-title" id="hero-title">
+            {profile.siteName || "Inspiria Careers"}{" "}
+            {profile.tagline && <><br /><span>{profile.tagline}</span></>}
+          </div>
+          <p className="hero-subtitle">
+            {profile.subTagline || t("detailsComingSoon", lang)}
           </p>
-        </div>
-      </section>
-
-      {/* ── 4. STRATEGIC GOALS & MANDATES (HEADING FROM SCREENSHOT) ── */}
-      <section className="section" style={{ background: "#ffffff", borderBottom: "1px solid #e2e8f0" }}>
-        <div className="container">
-          <div className="section-header">
-            <div className="section-tag">{settings.goalsSectionTag || "Core Principles"}</div>
-            <h2 className="section-title">
-              {settings.goalsSectionTitle || (
-                <>
-                  Strategic Goals &amp; <span>Mandates</span>
-                </>
-              )}
-            </h2>
-            <p className="section-subtitle">
-              {settings.goalsSectionSubtitle || "Pioneering a standardized, transparent, and empathetic career guidance framework for every student."}
-            </p>
-          </div>
-
-          <div className="grid-3">
-            <div className="card card-teal">
-              <div style={{ marginBottom: "0.75rem" }}>
-                <RenderIcon icon={settings.goal1Icon || "🎯"} alt={settings.goal1Title} size={50} />
-              </div>
-              <h3 style={{ fontSize: "1.2rem", fontWeight: 800, color: "#002147", marginBottom: "0.5rem" }}>
-                {settings.goal1Title || "Scientific Stream & Career Selection"}
-              </h3>
-              <p style={{ color: "#64748b", fontSize: "0.92rem", lineHeight: 1.7 }}>
-                {settings.goal1Desc || "Eliminating uncertainty through validated aptitude metrics, helping students pinpoint subjects and college degrees perfectly aligned with their innate cognitive capabilities."}
-              </p>
-            </div>
-
-            <div className="card card-teal">
-              <div style={{ marginBottom: "0.75rem" }}>
-                <RenderIcon icon={settings.goal2Icon || "🌿"} alt={settings.goal2Title} size={50} />
-              </div>
-              <h3 style={{ fontSize: "1.2rem", fontWeight: 800, color: "#002147", marginBottom: "0.5rem" }}>
-                {settings.goal2Title || "Exam Distress & Anxiety Mitigation"}
-              </h3>
-              <p style={{ color: "#64748b", fontSize: "0.92rem", lineHeight: 1.7 }}>
-                {settings.goal2Desc || "Holistic psychological support and mental composure coaching for board exams, JEE, NEET, and CUET, fostering emotional resilience and unwavering confidence."}
-              </p>
-            </div>
-
-            <div className="card card-teal">
-              <div style={{ marginBottom: "0.75rem" }}>
-                <RenderIcon icon={settings.goal3Icon || "🏛️"} alt={settings.goal3Title} size={50} />
-              </div>
-              <h3 style={{ fontSize: "1.2rem", fontWeight: 800, color: "#002147", marginBottom: "0.5rem" }}>
-                {settings.goal3Title || "Central & Global Admission Advisory"}
-              </h3>
-              <p style={{ color: "#64748b", fontSize: "0.92rem", lineHeight: 1.7 }}>
-                {settings.goal3Desc || "Complete roadmap navigation covering college seat matrix, SOP drafting, portfolio preparation, and scholarship acquisition across premier Indian institutions and Ivy League universities."}
-              </p>
-            </div>
+          <div className="hero-actions">
+            <Link href="/contact" className="btn btn-secondary btn-lg" id="hero-book-btn">
+              📅 {t("bookAppointment", lang)}
+            </Link>
+            <Link href="/about" className="btn btn-ghost btn-lg" style={{ color: "#fff", borderColor: "rgba(255,255,255,.45)" }}>
+              {t("about", lang)} →
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* ── 5. SERVICES & VERTICALS (CUSTOMIZABLE WITH UNIFORM ICONS) ── */}
-      <section className="section" style={{ background: "#f8fafc" }}>
+      {/* ── Stats Banner (only if data set) ── */}
+      {(profile.studentsGuided || profile.yearsExperience || profile.successRate) && (
+        <section style={{ background: "var(--brand-primary-dark, #111f52)", padding: "2.5rem 1.25rem" }} aria-label="Statistics">
+          <div className="container">
+            <div className="grid-4" style={{ textAlign: "center" }}>
+              {[
+                { val: profile.studentsGuided, lbl: lang === "hi" ? "मार्गदर्शित छात्र" : "Students Guided" },
+                { val: profile.yearsExperience, lbl: lang === "hi" ? "वर्षों का अनुभव" : "Years Experience" },
+                { val: profile.successRate, lbl: lang === "hi" ? "सफलता दर" : "Success Rate" },
+                { val: "100%", lbl: lang === "hi" ? "व्यक्तिगत ध्यान" : "Personalised Attention" },
+              ]
+                .filter((s) => s.val)
+                .map((s) => (
+                  <div key={s.lbl} className="stat-card">
+                    <div className="stat-value">{s.val}</div>
+                    <div className="stat-label">{s.lbl}</div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Services Section ── */}
+      <section className="section" aria-labelledby="services-heading">
         <div className="container">
           <div className="section-header">
-            <div className="section-tag">{settings.servicesSectionTag || "Guidance Offerings"}</div>
-            <h2 className="section-title">
-              {settings.servicesSectionTitle || (
-                <>
-                  Our Counselling <span>Services &amp; Verticals</span>
-                </>
-              )}
+            <div className="section-tag">{lang === "hi" ? "हमारी सेवाएं" : "Our Services"}</div>
+            <h2 className="section-title" id="services-heading">
+              {lang === "hi" ? "परामर्श <span>सेवाएं</span>" : "Counselling <span>Services</span>"}
             </h2>
             <p className="section-subtitle">
-              {settings.servicesSectionSubtitle || "Comprehensive counseling solutions tailored to each student's unique journey and aspirations."}
+              {lang === "hi" ? "हर छात्र के लिए अनुकूलित मार्गदर्शन।" : "Tailored guidance for every student's unique journey."}
             </p>
           </div>
 
-          <div className="grid-3">
-            {services.map((s, i) => (
-              <div
-                key={i}
-                className="card card-gold animate-in"
-                style={{
-                  background: "#ffffff",
-                  padding: "1.75rem",
-                  border: "1px solid #e2e8f0",
-                  borderTop: "3px solid #002147",
-                }}
-              >
-                <div style={{ marginBottom: "1rem" }}>
-                  <RenderIcon icon={s.icon} alt={s.title} size={58} />
+          {services.length === 0 ? (
+            <EmptyState message={t("detailsComingSoon", lang)} />
+          ) : (
+            <div className="grid-3">
+              {services.map((s) => (
+                <div key={s.id} className="card card-accent">
+                  {s.icon && <div style={{ fontSize: "2rem", marginBottom: ".75rem" }}>{s.icon}</div>}
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: ".5rem" }}>{s.title}</h3>
+                  <p style={{ color: "var(--text-muted)", fontSize: ".9rem", lineHeight: 1.7 }}>{s.description}</p>
                 </div>
-                <h3 style={{ fontSize: "1.15rem", fontWeight: 800, color: "#002147", marginBottom: "0.5rem" }}>
-                  {s.title}
-                </h3>
-                <p style={{ color: "#64748b", fontSize: "0.9rem", lineHeight: 1.65 }}>
-                  {s.desc}
-                </p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <div style={{ textAlign: "center", marginTop: "2.5rem" }}>
-            <Link href="/contact" className="btn btn-teal" style={{ padding: "0.75rem 2rem", fontSize: "0.95rem" }}>
-              {settings.servicesBtnText || "🗓️ Book a Counseling Session Now"}
+            <Link href="/contact" className="btn btn-primary" id="services-book-btn">
+              📅 {t("bookAppointment", lang)}
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ── 6. INTERACTIVE GUIDANCE MODULES & OPTIONS (DYNAMICALLY EDITABLE) ── */}
-      <section className="section" style={{ background: "#ffffff", borderTop: "1px solid #e2e8f0" }}>
+      {/* ── Counsellor Intro ── */}
+      <section className="section" style={{ background: "var(--surface-2)" }} aria-labelledby="counsellor-heading">
         <div className="container">
-          <div className="section-header">
-            <div className="section-tag">Interactive Features</div>
-            <h2 className="section-title">
-              {settings.homeOptionsTitle || "Interactive Guidance Modules & Quick Options"}
-            </h2>
-            <p className="section-subtitle">
-              {settings.homeOptionsSubtitle || "Explore our integrated career database, global mentor network, orientation webinars, and custom institutional templates."}
-            </p>
-          </div>
-
-          <div className="grid-3">
-            {(settings.homeOptions && settings.homeOptions.length > 0 ? settings.homeOptions : defaultHomeOptions).map((opt) => (
-              <div
-                key={opt.id}
-                className="card card-teal animate-in"
-                style={{
-                  background: "#ffffff",
-                  padding: "1.75rem",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  borderRadius: 12,
-                  border: "1px solid #e2e8f0",
-                }}
-              >
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                    <div style={{ fontSize: "2.25rem" }}>{opt.icon}</div>
-                    {opt.badge && <span className="badge badge-gold">{opt.badge}</span>}
-                  </div>
-                  <h3 style={{ fontSize: "1.15rem", fontWeight: 800, color: "#002147", marginBottom: "0.5rem" }}>
-                    {opt.title}
-                  </h3>
-                  <p style={{ color: "#64748b", fontSize: "0.88rem", lineHeight: 1.7, marginBottom: "1.25rem" }}>
-                    {opt.desc}
-                  </p>
-                </div>
-                <Link
-                  href={opt.href}
-                  className="btn btn-teal btn-sm"
-                  style={{ alignSelf: "flex-start", width: "100%", justifyContent: "center" }}
-                >
-                  {opt.btnText || "Open Option →"}
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── 7. PHILOSOPHICAL HIGHLIGHT: THE DEMAT ACCOUNT & GROWTH INSTRUMENTS ── */}
-      <section className="section" style={{ background: "linear-gradient(135deg, #002147 0%, #0c3666 100%)", color: "#ffffff" }}>
-        <div className="container">
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "3.5rem", alignItems: "center" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "3rem", alignItems: "center" }} className="grid-auto-counsellor">
             <div>
-              <div className="section-tag" style={{ background: "rgba(255,204,0,0.15)", color: "#ffcc00", borderColor: "rgba(255,204,0,0.4)" }}>
-                Core Philosophy &amp; Socratic Inquisitions
-              </div>
-              <h2 style={{ fontSize: "2.2rem", fontWeight: 800, color: "#ffffff", marginTop: "0.75rem", lineHeight: 1.3 }}>
-                Stock in Your Life&apos;s <span style={{ color: "#ffcc00" }}>Demat Account</span>
+              <div className="section-tag">{lang === "hi" ? "परामर्शदाता" : "Meet the Counsellor"}</div>
+              <h2 className="section-title" id="counsellor-heading" style={{ textAlign: "left", marginTop: ".5rem" }}>
+                {hasProfile ? profile.counsellorName : t("detailsComingSoon", lang)}
               </h2>
-              <p style={{ color: "#cbd5e1", lineHeight: 1.85, fontSize: "1rem", margin: "1.25rem 0" }}>
-                A mind once exquisitely said, <em>&ldquo;Choose a job you love, and you will never have to work a day in your life.&rdquo;</em> Easier said than implemented. How many individuals actually mess with their gray matter to find their true love? 97% of people follow the populace and waste years in regret. That is why a structured Career Plan is the single most valuable stock in your life&apos;s demat account.
-              </p>
-              <p style={{ color: "#94a3b8", lineHeight: 1.8, fontSize: "0.92rem", marginBottom: "1.75rem" }}>
-                We impose diagnostic inquisitions upon you — structured confabs that distinguish between what is merely popular and what quenches your authentic curiosity. We then unlock the <strong>instruments of growth</strong>: acknowledging students with the right competitions, channels, mentors, and field directors.
-              </p>
-              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-                <Link href="/database" className="btn btn-gold">
-                  Explore Career Fields Database 📊
-                </Link>
-                <Link href="/about" className="btn btn-ghost">
-                  Read Socratic Methodology →
-                </Link>
-              </div>
-            </div>
-
-            <div
-              className="card"
-              style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,204,0,0.3)",
-                padding: "2rem",
-                borderRadius: 14,
-                boxShadow: "0 12px 36px rgba(0,0,0,0.3)",
-              }}
-            >
-              <h3 style={{ fontSize: "1.25rem", color: "#ffcc00", marginBottom: "1rem", fontWeight: 800 }}>
-                🍕 Ease of Access Like Ordering a Pizza
-              </h3>
-              <p style={{ color: "#e2e8f0", fontSize: "0.9rem", lineHeight: 1.7, marginBottom: "1.25rem" }}>
-                Our 5-7 year global mandate is to remove every shred of doubt from career guidance, establishing global accessibility as instinctive as ordering your favorite meal.
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-                <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-                  <span style={{ fontSize: "1.2rem" }}>🎯</span>
-                  <div style={{ fontSize: "0.88rem", color: "#cbd5e1" }}>
-                    <strong style={{ color: "#ffffff" }}>Independent Debuggers:</strong> Training youth to solve problems without crippling doubt.
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-                  <span style={{ fontSize: "1.2rem" }}>🌐</span>
-                  <div style={{ fontSize: "0.88rem", color: "#cbd5e1" }}>
-                    <strong style={{ color: "#ffffff" }}>Worldwide Mentors:</strong> Connecting premier global faculties with student seekers.
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-                  <span style={{ fontSize: "1.2rem" }}>📱</span>
-                  <div style={{ fontSize: "0.88rem", color: "#cbd5e1" }}>
-                    <strong style={{ color: "#ffffff" }}>Mobile Ecosystem:</strong> Android &amp; iOS apps bringing guidance straight to your pocket.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── 6. COUNSELOR PROFILE SECTION ── */}
-      <section className="section" style={{ background: "#ffffff", borderTop: "1px solid #e2e8f0" }}>
-        <div className="container">
-          <div style={{ display: "grid", gridTemplateColumns: "1.15fr 0.85fr", gap: "3.5rem", alignItems: "center" }}>
-            <div>
-              <div className="section-tag">{settings.counselorSectionTag || "About the Senior Counselor"}</div>
-              <h2 className="section-title" style={{ textAlign: "left", marginTop: "0.5rem" }}>
-                Meet <span>{settings.principalName}</span>
-              </h2>
-              <p style={{ color: "#334155", lineHeight: 1.85, margin: "1.25rem 0", fontSize: "1rem" }}>
-                {settings.aboutBio}
-              </p>
-              <blockquote
-                style={{
-                  borderLeft: "4px solid #009ea9",
-                  padding: "0.85rem 1.25rem",
-                  margin: "1.5rem 0",
-                  fontStyle: "italic",
-                  color: "#0f172a",
-                  background: "#e6f7f8",
-                  borderRadius: "0 6px 6px 0",
-                  fontSize: "0.95rem",
-                }}
-              >
-                &ldquo;{settings.philosophy}&rdquo;
-              </blockquote>
-              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginTop: "1.5rem" }}>
-                <Link href="/about" className="btn btn-navy">
-                  Read Full Counselor Biography →
-                </Link>
-                <Link href="/contact" className="btn btn-teal">
-                  Schedule Direct Consultation
-                </Link>
-              </div>
-            </div>
-
-            <div>
-              <div
-                className="card"
-                style={{
-                  textAlign: "center",
-                  padding: "2.5rem",
-                  background: "#ffffff",
-                  border: "2px solid #002147",
-                  boxShadow: "0 10px 30px rgba(0,33,71,0.1)",
-                }}
-              >
-                <div
-                  style={{
-                    width: 140,
-                    height: 175,
-                    borderRadius: 10,
-                    margin: "0 auto 1.25rem",
-                    overflow: "hidden",
-                    border: "3px solid #ffcc00",
-                    boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
-                    background: "#0c1b3a",
-                  }}
-                >
-                  <img
-                    src={settings.principalPhoto || "/logo.jpg"}
-                    alt={settings.principalName}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                </div>
-                <h3 style={{ fontSize: "1.4rem", fontWeight: 800, color: "#002147" }}>
-                  {settings.principalName}
-                </h3>
-                <p style={{ color: "#009ea9", fontSize: "0.85rem", fontWeight: 700, margin: "0.3rem 0 1rem" }}>
-                  {settings.principalDesignation || "Senior Educational & Career Counselor | M.Ed & Child Psychologist"}
+              {profile.counsellorTitle && (
+                <p style={{ color: "var(--brand-secondary)", fontWeight: 600, marginBottom: "1rem" }}>
+                  {profile.counsellorTitle}
                 </p>
-                <div style={{ display: "flex", justifyContent: "center", gap: "0.4rem", flexWrap: "wrap" }}>
-                  <span className="badge badge-teal">{settings.counselorBadge1 || "Academic Mentor"}</span>
-                  <span className="badge badge-gold">{settings.counselorBadge2 || "Adolescent Coach"}</span>
-                  <span className="badge badge-blue">{settings.counselorBadge3 || "Global Advisory"}</span>
-                </div>
+              )}
+              {profile.counsellorBio && (
+                <p style={{ color: "var(--text-muted)", lineHeight: 1.85, marginBottom: "1.5rem" }}>
+                  {profile.counsellorBio}
+                </p>
+              )}
+              {!hasProfile && <p style={{ color: "var(--text-muted)" }}>{t("detailsComingSoon", lang)}</p>}
+              <div style={{ display: "flex", gap: ".75rem", flexWrap: "wrap" }}>
+                <Link href="/about" className="btn btn-outline">{t("about", lang)} →</Link>
+                <Link href="/contact" className="btn btn-primary" id="counsellor-book-btn">
+                  {t("bookAppointment", lang)}
+                </Link>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* ── 7. STATS BANNER (PORTAL NUMBERS) ── */}
-      <section style={{ background: "#002147", color: "#ffffff", padding: "3rem 2rem" }}>
-        <div className="container">
-          <div className="grid-4" style={{ textAlign: "center" }}>
-            {stats.map((s, i) => (
-              <div key={i} style={{ padding: "1rem" }}>
-                <div style={{ fontSize: "2.5rem", fontWeight: 900, color: "#ffcc00", marginBottom: "0.25rem" }}>
-                  {s.value}
-                </div>
-                <div style={{ fontSize: "0.85rem", color: "#cbd5e1", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  {s.label}
+            {profile.counsellorPhoto && (
+              <div style={{ textAlign: "center", flexShrink: 0 }}>
+                <img
+                  src={profile.counsellorPhoto}
+                  alt={profile.counsellorName || "Counsellor"}
+                  style={{ width: 160, height: 200, objectFit: "cover", borderRadius: "var(--radius)", border: "3px solid var(--brand-secondary)", boxShadow: "var(--shadow)" }}
+                />
+                <div style={{ display: "flex", flexWrap: "wrap", gap: ".4rem", marginTop: ".75rem", justifyContent: "center", maxWidth: 180 }}>
+                  {profile.badge1 && <span className="badge badge-primary">{profile.badge1}</span>}
+                  {profile.badge2 && <span className="badge badge-secondary">{profile.badge2}</span>}
+                  {profile.badge3 && <span className="badge badge-muted">{profile.badge3}</span>}
                 </div>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </section>
 
-      {/* ── 8. CALL TO ACTION ── */}
-      <section style={{ background: "#e6f7f8", padding: "4rem 2rem", borderTop: "1px solid #a3e3e7" }}>
-        <div className="container" style={{ textAlign: "center", maxWidth: 740 }}>
-          <div className="section-tag" style={{ background: "#ffffff" }}>{settings.ctaTag || "Official Advisory Portal"}</div>
-          <h2 style={{ fontSize: "2.2rem", fontWeight: 800, color: "#002147", marginTop: "0.5rem" }}>
-            {settings.ctaTitle || "Ready to Plan Your Educational & Career Future?"}
+      {/* ── CTA ── */}
+      <section className="section" style={{ background: "var(--brand-primary)", color: "#fff", textAlign: "center" }} aria-label="Call to action">
+        <div className="container" style={{ maxWidth: 680 }}>
+          <h2 style={{ fontSize: "clamp(1.6rem,3vw,2.2rem)", fontWeight: 800, marginBottom: "1rem" }}>
+            {lang === "hi" ? "अपनी यात्रा आज शुरू करें" : "Start Your Journey Today"}
           </h2>
-          <p style={{ color: "#475569", margin: "1.25rem 0 2rem", fontSize: "1.05rem", lineHeight: 1.8 }}>
-            {settings.ctaDesc || "Empowering students with clarity, confidence, and competitive competence. Access expert counseling articles, research resources, and schedule your session today."}
+          <p style={{ opacity: .85, lineHeight: 1.8, marginBottom: "2rem", fontSize: "1rem" }}>
+            {lang === "hi"
+              ? "हमारे अनुभवी परामर्शदाता के साथ एक सत्र बुक करें और अपने लक्ष्यों की ओर पहला कदम उठाएं।"
+              : "Book a session with our experienced counsellor and take the first step towards your goals."}
           </p>
-          <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/contact" className="btn btn-teal" style={{ padding: "0.75rem 2rem", fontSize: "1rem" }}>
-              {settings.ctaBtnText || "🗓️ Book Consultation Session"}
-            </Link>
-            <Link href="/posts" className="btn btn-navy" style={{ padding: "0.75rem 2rem", fontSize: "1rem" }}>
-              📖 Explore Articles &amp; Guides
-            </Link>
-          </div>
+          <Link href="/contact" className="btn btn-secondary btn-lg" id="cta-book-btn">
+            📅 {t("bookAppointment", lang)}
+          </Link>
         </div>
       </section>
     </main>
