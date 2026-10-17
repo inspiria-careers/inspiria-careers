@@ -56,9 +56,11 @@ export interface SiteProfile {
   linkedin: string;
   twitter: string;
 
-  // Theme (2 brand colours)
+  // Theme (2 brand colours + font)
   brandPrimary: string;   // e.g. "#1a3a8f"
   brandSecondary: string; // e.g. "#c9a84c"
+  fontFamily?: string;
+  preset?: string;
 
   // Footer legal
   privacyPolicyUrl: string;
@@ -132,6 +134,9 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     if (typeof document === "undefined") return;
     document.documentElement.style.setProperty("--brand-primary", p.brandPrimary || "#1a3a8f");
     document.documentElement.style.setProperty("--brand-secondary", p.brandSecondary || "#c9a84c");
+    if (p.fontFamily) {
+      document.documentElement.style.setProperty("--font", p.fontFamily);
+    }
   }, []);
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
@@ -27,9 +27,45 @@ export default function BookAppointmentPage() {
   const [timeSlot, setTimeSlot] = useState(TIME_SLOTS[0]);
   const [mode, setMode] = useState<"Online" | "In-Person">("Online");
   const [notes, setNotes] = useState("");
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+
+  // Honeypot anti-spam
+  const [hp, setHp] = useState("");
 
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Check booked slots when date changes
+  useEffect(() => {
+    async function checkBookedSlots() {
+      if (!date) {
+        setBookedSlots([]);
+        return;
+      }
+      try {
+        const q = query(
+          collection(db, "appointments"),
+          where("date", "==", date)
+        );
+        const snap = await getDocs(q);
+        const taken = snap.docs
+          .map((d) => d.data())
+          .filter((d) => d.status !== "cancelled")
+          .map((d) => d.timeSlot);
+        setBookedSlots(taken);
+
+        // If current slot is taken, switch to first available
+        if (taken.includes(timeSlot)) {
+          const firstFree = TIME_SLOTS.find((s) => !taken.includes(s));
+          if (firstFree) setTimeSlot(firstFree);
+        }
+      } catch (err) {
+        console.error("Error checking slot availability:", err);
+      }
+    }
+
+    checkBookedSlots();
+  }, [date]);
 
   // Auto-fill from logged in user
   useEffect(() => {
@@ -48,11 +84,27 @@ export default function BookAppointmentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Honeypot bot protection
+    if (hp) {
+      setStatus("success");
+      return;
+    }
+
     if (!name.trim() || !phone.trim() || !date) {
       setErrorMsg(
         lang === "hi"
           ? "कृपया नाम, फोन नंबर, और तारीख अनिवार्य रूप से भरें।"
           : "Please provide your name, phone number, and appointment date."
+      );
+      return;
+    }
+
+    if (bookedSlots.includes(timeSlot)) {
+      setErrorMsg(
+        lang === "hi"
+          ? "यह समय स्लॉट पहले से बुक हो चुका है। कृपया दूसरा स्लॉट चुनें।"
+          : "This time slot has already been booked. Please choose an alternate slot."
       );
       return;
     }
@@ -221,14 +273,28 @@ export default function BookAppointmentPage() {
                       value={timeSlot}
                       onChange={(e) => setTimeSlot(e.target.value)}
                     >
-                      {TIME_SLOTS.map((slot) => (
-                        <option key={slot} value={slot}>
-                          {slot}
-                        </option>
-                      ))}
+                      {TIME_SLOTS.map((slot) => {
+                        const isBooked = bookedSlots.includes(slot);
+                        return (
+                          <option key={slot} value={slot} disabled={isBooked}>
+                            {slot} {isBooked ? `(${lang === "hi" ? "बुक हो चुका" : "Booked"})` : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>
+
+                {/* Honeypot field for anti-spam bots */}
+                <input
+                  type="text"
+                  name="user_confirm_token"
+                  value={hp}
+                  onChange={(e) => setHp(e.target.value)}
+                  style={{ display: "none" }}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
 
                 <div className="form-group">
                   <label className="form-label">{lang === "hi" ? "परामर्श माध्यम *" : "Session Mode *"}</label>

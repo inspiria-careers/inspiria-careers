@@ -1,0 +1,36 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidFileSize() {
+      // Max 5 MB = 5 * 1024 * 1024 bytes
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+
+    function isValidMimeType() {
+      return request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('image/.*');
+    }
+
+    // Public Assets (Gallery, counsellor photos, website branding)
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Client Private Vault: /clients/{userId}/{fileName}
+    match /clients/{userId}/{fileName} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidFileSize() && isValidMimeType();
+      allow delete: if isOwner(userId);
+    }
+  }
+}

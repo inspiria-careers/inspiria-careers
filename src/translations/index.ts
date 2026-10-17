@@ -39,6 +39,14 @@ const strings: Record<string, Record<Lang, string>> = {
   roleAdmin: { en: "Admin", hi: "व्यवस्थापक" },
   roleCounsellor: { en: "Counsellor", hi: "परामर्शदाता" },
   roleClient: { en: "Client", hi: "क्लाइंट" },
+  reviews: { en: "Reviews", hi: "समीक्षाएं" },
+  articles: { en: "Articles", hi: "लेख" },
+  shareExperience: { en: "Share Your Experience", hi: "अपना अनुभव साझा करें" },
+  clientNotes: { en: "Private Notes", hi: "निजी नोट्स" },
+  clientDocuments: { en: "Documents", hi: "दस्तावेज़" },
+  sharedWithCounsellor: { en: "Shared with Counsellor", hi: "काउंसलर के साथ साझा" },
+  exportData: { en: "Export My Data", hi: "डेटा डाउनलोड करें" },
+  deleteAccount: { en: "Delete Account & Data", hi: "खाता व डेटा मिटाएं" },
 };
 
 export function t(key: string, lang: Lang = "en"): string {

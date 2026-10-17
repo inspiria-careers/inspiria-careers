@@ -10,11 +10,12 @@ import {
   deleteDoc,
   serverTimestamp,
   query,
-  orderBy,
+  where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite, ServiceItem, GalleryItem, SiteProfile } from "@/contexts/SiteContext";
+import { slugify, compressImage } from "@/lib/imageUtils";
 import { t } from "@/translations";
 
 interface AppointmentDoc {
@@ -27,6 +28,7 @@ interface AppointmentDoc {
   timeSlot: string;
   mode: string;
   notes?: string;
+  counsellorNote?: string;
   status: "pending" | "confirmed" | "completed" | "cancelled";
   createdAt?: any;
 }
@@ -34,11 +36,38 @@ interface AppointmentDoc {
 interface PostDoc {
   id: string;
   title: string;
+  slug?: string;
   category: string;
   excerpt: string;
   content: string;
   coverImage?: string;
+  coverImageAlt?: string;
   published: boolean;
+  createdAt?: any;
+}
+
+interface ReviewDoc {
+  id: string;
+  userId?: string | null;
+  clientName: string;
+  displayNameChoice?: "full" | "first_only" | "anonymous";
+  rating: number;
+  comment: string;
+  approved: boolean;
+  createdAt?: any;
+}
+
+interface SharedVaultItem {
+  id: string;
+  userId: string;
+  type: "note" | "document";
+  title?: string;
+  content?: string;
+  fileName?: string;
+  fileUrl?: string;
+  fileSize?: number;
+  sharedWithCounsellor: boolean;
+  updatedAt?: any;
   createdAt?: any;
 }
 
@@ -46,7 +75,9 @@ export default function CounsellorDashboardPage() {
   const { user, role, loading: authLoading } = useAuth();
   const { profile, services, gallery, updateProfile, updateServices, updateGallery, lang } = useSite();
 
-  const [activeTab, setActiveTab] = useState<"profile" | "services" | "gallery" | "appointments" | "posts">("profile");
+  const [activeTab, setActiveTab] = useState<
+    "profile" | "services" | "gallery" | "appointments" | "posts" | "reviews" | "vault"
+  >("profile");
 
   // Profile state
   const [profileForm, setProfileForm] = useState<SiteProfile>(profile);
@@ -84,12 +115,40 @@ export default function CounsellorDashboardPage() {
   const [appointments, setAppointments] = useState<AppointmentDoc[]>([]);
   const [loadingAppts, setLoadingAppts] = useState(false);
   const [apptFilter, setApptFilter] = useState<string>("all");
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [tempNote, setTempNote] = useState("");
 
   // Posts state
   const [postsList, setPostsList] = useState<PostDoc[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
-  const [newPost, setNewPost] = useState({ title: "", category: "Career Guidance", excerpt: "", content: "", coverImage: "", published: true });
+  const [newPost, setNewPost] = useState({
+    title: "",
+    slug: "",
+    category: "Career Guidance",
+    excerpt: "",
+    content: "",
+    coverImage: "",
+    coverImageAlt: "",
+    published: true,
+  });
   const [creatingPost, setCreatingPost] = useState(false);
+
+  // Reviews state
+  const [reviewsList, setReviewsList] = useState<ReviewDoc[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+
+  // Shared vault state
+  const [vaultItems, setVaultItems] = useState<SharedVaultItem[]>([]);
+  const [loadingVault, setLoadingVault] = useState(false);
+
+  // Auto-generate slug when title changes
+  const handleTitleChange = (val: string) => {
+    setNewPost((prev) => ({
+      ...prev,
+      title: val,
+      slug: prev.slug && prev.slug !== slugify(prev.title) ? prev.slug : slugify(val),
+    }));
+  };
 
   // Load appointments
   const loadAppointments = async () => {
@@ -97,7 +156,6 @@ export default function CounsellorDashboardPage() {
       setLoadingAppts(true);
       const snap = await getDocs(collection(db, "appointments"));
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppointmentDoc));
-      // Sort in memory by date/createdAt
       list.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
       setAppointments(list);
     } catch (err) {
@@ -121,9 +179,55 @@ export default function CounsellorDashboardPage() {
     }
   };
 
+  // Load reviews for moderation
+  const loadReviews = async () => {
+    try {
+      setLoadingReviews(true);
+      const snap = await getDocs(collection(db, "reviews"));
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ReviewDoc));
+      setReviewsList(list);
+    } catch (err) {
+      console.error("Error loading reviews:", err);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  // Load shared client vault
+  const loadSharedVault = async () => {
+    try {
+      setLoadingVault(true);
+      // Query shared notes
+      const notesQ = query(collection(db, "clientNotes"), where("sharedWithCounsellor", "==", true));
+      const notesSnap = await getDocs(notesQ);
+      const notesItems: SharedVaultItem[] = notesSnap.docs.map((d) => ({
+        id: d.id,
+        type: "note",
+        ...d.data(),
+      } as SharedVaultItem));
+
+      // Query shared documents
+      const docsQ = query(collection(db, "clientDocuments"), where("sharedWithCounsellor", "==", true));
+      const docsSnap = await getDocs(docsQ);
+      const docsItems: SharedVaultItem[] = docsSnap.docs.map((d) => ({
+        id: d.id,
+        type: "document",
+        ...d.data(),
+      } as SharedVaultItem));
+
+      setVaultItems([...notesItems, ...docsItems]);
+    } catch (err) {
+      console.error("Error loading shared vault:", err);
+    } finally {
+      setLoadingVault(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "appointments") loadAppointments();
     if (activeTab === "posts") loadPosts();
+    if (activeTab === "reviews") loadReviews();
+    if (activeTab === "vault") loadSharedVault();
   }, [activeTab]);
 
   // Save profile
@@ -183,7 +287,7 @@ export default function CounsellorDashboardPage() {
       type: newGalleryItem.type,
       url: newGalleryItem.url.trim(),
       caption: newGalleryItem.caption.trim(),
-      category: newGalleryItem.category.trim() || "General",
+      category: newGalleryItem.category.trim() || "Events",
     };
 
     const updated = [...galleryList, item];
@@ -204,7 +308,7 @@ export default function CounsellorDashboardPage() {
     await updateGallery(updated);
   };
 
-  // Appointment Status Change
+  // Appointment Status Change & Remarks
   const handleApptStatusChange = async (id: string, newStatus: AppointmentDoc["status"]) => {
     try {
       await updateDoc(doc(db, "appointments", id), { status: newStatus });
@@ -217,24 +321,49 @@ export default function CounsellorDashboardPage() {
     }
   };
 
-  // Create Post
+  const handleSaveInternalNote = async (id: string) => {
+    try {
+      await updateDoc(doc(db, "appointments", id), { counsellorNote: tempNote.trim() });
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, counsellorNote: tempNote.trim() } : a))
+      );
+      setEditingNoteId(null);
+    } catch (err) {
+      alert("Failed to save note.");
+    }
+  };
+
+  // Create Article / Post
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPost.title.trim() || !newPost.content.trim()) return;
+
+    const finalSlug = (newPost.slug || slugify(newPost.title)).trim();
 
     try {
       setCreatingPost(true);
       await addDoc(collection(db, "posts"), {
         title: newPost.title.trim(),
-        category: newPost.category.trim(),
+        slug: finalSlug,
+        category: newPost.category.trim() || "Guidance",
         excerpt: newPost.excerpt.trim() || newPost.content.substring(0, 140) + "...",
         content: newPost.content.trim(),
         coverImage: newPost.coverImage.trim() || null,
+        coverImageAlt: newPost.coverImageAlt.trim() || newPost.title.trim(),
         published: newPost.published,
         authorName: profile.counsellorName || user?.displayName || "Counsellor",
         createdAt: serverTimestamp(),
       });
-      setNewPost({ title: "", category: "Career Guidance", excerpt: "", content: "", coverImage: "", published: true });
+      setNewPost({
+        title: "",
+        slug: "",
+        category: "Career Guidance",
+        excerpt: "",
+        content: "",
+        coverImage: "",
+        coverImageAlt: "",
+        published: true,
+      });
       loadPosts();
     } catch (err) {
       console.error("Error creating post:", err);
@@ -251,6 +380,28 @@ export default function CounsellorDashboardPage() {
       setPostsList((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
       alert("Failed to delete article.");
+    }
+  };
+
+  // Review Moderation
+  const handleModerateReview = async (id: string, approved: boolean) => {
+    try {
+      await updateDoc(doc(db, "reviews", id), { approved });
+      setReviewsList((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, approved } : r))
+      );
+    } catch (err) {
+      alert("Failed to update review status.");
+    }
+  };
+
+  const handleDeleteReview = async (id: string) => {
+    if (!confirm("Delete this review permanently?")) return;
+    try {
+      await deleteDoc(doc(db, "reviews", id));
+      setReviewsList((prev) => prev.filter((r) => r.id !== id));
+    } catch (err) {
+      alert("Failed to delete review.");
     }
   };
 
@@ -300,13 +451,25 @@ export default function CounsellorDashboardPage() {
             className={`dash-nav-item${activeTab === "posts" ? " active" : ""}`}
             onClick={() => setActiveTab("posts")}
           >
-            📝 Articles &amp; Posts
+            📝 Articles &amp; Blog ({postsList.length})
           </button>
           <button
             className={`dash-nav-item${activeTab === "appointments" ? " active" : ""}`}
             onClick={() => setActiveTab("appointments")}
           >
             📅 Appointments ({appointments.length})
+          </button>
+          <button
+            className={`dash-nav-item${activeTab === "reviews" ? " active" : ""}`}
+            onClick={() => setActiveTab("reviews")}
+          >
+            ⭐ Reviews Moderation ({reviewsList.filter((r) => !r.approved).length} new)
+          </button>
+          <button
+            className={`dash-nav-item${activeTab === "vault" ? " active" : ""}`}
+            onClick={() => setActiveTab("vault")}
+          >
+            🔒 Shared Client Vault ({vaultItems.length})
           </button>
 
           <div className="dash-section-title" style={{ marginTop: "1.5rem" }}>Quick Links</div>
@@ -316,7 +479,7 @@ export default function CounsellorDashboardPage() {
             </Link>
           )}
           <Link href="/" className="dash-nav-item">
-            🌐 View Public Website
+            🌐 Public Website
           </Link>
         </aside>
 
@@ -718,8 +881,8 @@ export default function CounsellorDashboardPage() {
           {activeTab === "posts" && (
             <div>
               <div className="dash-header">
-                <h1>📝 Articles &amp; Insights</h1>
-                <p>Publish helpful guidance articles for students, parents, and aspirants.</p>
+                <h1>📝 Articles &amp; Blog Management</h1>
+                <p>Create guidance articles with auto-generated slugs, cover image alt-text, and category tags.</p>
               </div>
 
               {/* Create Post Card */}
@@ -734,11 +897,24 @@ export default function CounsellorDashboardPage() {
                       type="text"
                       className="form-input"
                       value={newPost.title}
-                      onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
+                      onChange={(e) => handleTitleChange(e.target.value)}
                       placeholder="e.g. How to Choose the Right Career Stream in 2026"
                       required
                     />
                   </div>
+                  <div className="form-group">
+                    <label className="form-label">SEO URL Slug (Auto-generated or custom)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={newPost.slug}
+                      onChange={(e) => setNewPost({ ...newPost, slug: slugify(e.target.value) })}
+                      placeholder="how-to-choose-the-right-career-stream-2026"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid-2" style={{ gap: "1rem", marginTop: "1rem" }}>
                   <div className="form-group">
                     <label className="form-label">Category</label>
                     <input
@@ -746,8 +922,19 @@ export default function CounsellorDashboardPage() {
                       className="form-input"
                       value={newPost.category}
                       onChange={(e) => setNewPost({ ...newPost, category: e.target.value })}
-                      placeholder="Career Guidance / College Selection / Stress Management"
+                      placeholder="Career Guidance / College Selection / Entrance Exams"
                     />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Status</label>
+                    <select
+                      className="form-select"
+                      value={newPost.published ? "published" : "draft"}
+                      onChange={(e) => setNewPost({ ...newPost, published: e.target.value === "published" })}
+                    >
+                      <option value="published">Published (Live to Public)</option>
+                      <option value="draft">Draft (Private)</option>
+                    </select>
                   </div>
                 </div>
 
@@ -763,19 +950,30 @@ export default function CounsellorDashboardPage() {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Short Summary (Excerpt)</label>
+                    <label className="form-label">Image Alt Text (Accessibility)</label>
                     <input
                       type="text"
                       className="form-input"
-                      value={newPost.excerpt}
-                      onChange={(e) => setNewPost({ ...newPost, excerpt: e.target.value })}
-                      placeholder="Brief one-sentence summary for preview cards..."
+                      value={newPost.coverImageAlt}
+                      onChange={(e) => setNewPost({ ...newPost, coverImageAlt: e.target.value })}
+                      placeholder="Students in educational counselling seminar"
                     />
                   </div>
                 </div>
 
                 <div className="form-group" style={{ marginTop: "1rem" }}>
-                  <label className="form-label">Article Content (Plain text or formatted) *</label>
+                  <label className="form-label">Short Summary (Excerpt)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={newPost.excerpt}
+                    onChange={(e) => setNewPost({ ...newPost, excerpt: e.target.value })}
+                    placeholder="Brief 1-2 sentence preview for search & cards..."
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginTop: "1rem" }}>
+                  <label className="form-label">Article Body *</label>
                   <textarea
                     className="form-textarea"
                     rows={8}
@@ -788,7 +986,7 @@ export default function CounsellorDashboardPage() {
 
                 <div style={{ marginTop: "1rem" }}>
                   <button type="submit" className="btn btn-primary" disabled={creatingPost}>
-                    {creatingPost ? "Publishing..." : "Publish Article"}
+                    {creatingPost ? "Saving..." : (newPost.published ? "Publish Article" : "Save as Draft")}
                   </button>
                 </div>
               </form>
@@ -828,8 +1026,17 @@ export default function CounsellorDashboardPage() {
                             <span className={`badge ${post.published ? "badge-success" : "badge-muted"}`}>
                               {post.published ? "Published" : "Draft"}
                             </span>
+                            {post.slug && (
+                              <span style={{ fontSize: "0.75rem", color: "var(--text-light)" }}>
+                                /{post.slug}
+                              </span>
+                            )}
                           </div>
-                          <h4 style={{ fontSize: "1.05rem", fontWeight: 700, marginTop: "0.5rem" }}>{post.title}</h4>
+                          <h4 style={{ fontSize: "1.05rem", fontWeight: 700, marginTop: "0.5rem" }}>
+                            <Link href={`/posts/${post.slug || post.id}`} target="_blank" style={{ color: "var(--text)" }}>
+                              {post.title} ↗
+                            </Link>
+                          </h4>
                           <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
                             {post.excerpt}
                           </p>
@@ -854,7 +1061,7 @@ export default function CounsellorDashboardPage() {
             <div>
               <div className="dash-header">
                 <h1>📅 Appointment Requests</h1>
-                <p>Manage and track all student/parent counselling booking requests.</p>
+                <p>Manage and track all student/parent counselling booking requests, change statuses, and record remarks.</p>
               </div>
 
               <div className="card" style={{ padding: "1.25rem" }}>
@@ -894,7 +1101,7 @@ export default function CounsellorDashboardPage() {
                           <th>Date &amp; Slot</th>
                           <th>Mode</th>
                           <th>Status</th>
-                          <th>Change Status</th>
+                          <th>Internal Remarks</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -903,7 +1110,7 @@ export default function CounsellorDashboardPage() {
                             <td>
                               <strong>{appt.clientName}</strong>
                               <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                                📞 {appt.clientPhone}
+                                📞 <a href={`tel:${appt.clientPhone}`}>{appt.clientPhone}</a>
                                 {appt.clientEmail && <div>✉️ {appt.clientEmail}</div>}
                               </div>
                               {appt.notes && (
@@ -921,21 +1128,6 @@ export default function CounsellorDashboardPage() {
                               <span className="badge badge-primary">{appt.mode}</span>
                             </td>
                             <td>
-                              <span
-                                className={`badge ${
-                                  appt.status === "confirmed"
-                                    ? "badge-success"
-                                    : appt.status === "pending"
-                                    ? "badge-warning"
-                                    : appt.status === "completed"
-                                    ? "badge-primary"
-                                    : "badge-error"
-                                }`}
-                              >
-                                {appt.status}
-                              </span>
-                            </td>
-                            <td>
                               <select
                                 className="form-select"
                                 style={{ width: "auto", padding: "0.3rem 0.6rem", fontSize: "0.82rem" }}
@@ -948,10 +1140,240 @@ export default function CounsellorDashboardPage() {
                                 <option value="cancelled">Cancelled</option>
                               </select>
                             </td>
+                            <td>
+                              {editingNoteId === appt.id ? (
+                                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                                  <textarea
+                                    className="form-textarea"
+                                    rows={2}
+                                    style={{ fontSize: "0.8rem", minHeight: 60 }}
+                                    value={tempNote}
+                                    onChange={(e) => setTempNote(e.target.value)}
+                                  />
+                                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                                    <button
+                                      type="button"
+                                      className="btn btn-primary btn-sm"
+                                      onClick={() => handleSaveInternalNote(appt.id)}
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn-ghost btn-sm"
+                                      onClick={() => setEditingNoteId(null)}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div>
+                                  <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.25rem" }}>
+                                    {appt.counsellorNote || "No internal notes"}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={() => {
+                                      setEditingNoteId(appt.id);
+                                      setTempNote(appt.counsellorNote || "");
+                                    }}
+                                  >
+                                    ✏️ Edit Note
+                                  </button>
+                                </div>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: REVIEWS MODERATION */}
+          {activeTab === "reviews" && (
+            <div>
+              <div className="dash-header">
+                <h1>⭐ Review Moderation</h1>
+                <p>Approve genuine student reviews to display them on the public home page and `/reviews`. Reject or delete spam.</p>
+              </div>
+
+              <div className="card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+                    Client Testimonials ({reviewsList.length})
+                  </h3>
+                  <button className="btn btn-ghost btn-sm" onClick={loadReviews} disabled={loadingReviews}>
+                    🔄 Refresh
+                  </button>
+                </div>
+
+                {loadingReviews ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
+                    <div className="spinner" />
+                  </div>
+                ) : reviewsList.length === 0 ? (
+                  <div className="empty-state">
+                    <p>No reviews submitted yet.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    {reviewsList.map((rev) => (
+                      <div
+                        key={rev.id}
+                        style={{
+                          padding: "1rem",
+                          borderRadius: "var(--radius-sm)",
+                          background: "var(--surface-2)",
+                          border: "1px solid var(--border)",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          gap: "1rem",
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", marginBottom: "0.4rem" }}>
+                            <span style={{ color: "#f39c12", fontWeight: 700 }}>
+                              {"★".repeat(rev.rating || 5)}
+                            </span>
+                            <span className={`badge ${rev.approved ? "badge-success" : "badge-warning"}`}>
+                              {rev.approved ? "Approved (Live)" : "Pending Approval"}
+                            </span>
+                          </div>
+                          <p style={{ fontSize: "0.92rem", color: "var(--text)", fontStyle: "italic", marginBottom: "0.5rem" }}>
+                            "{rev.comment}"
+                          </p>
+                          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                            By <strong>{rev.clientName}</strong> ({rev.displayNameChoice || "full name"})
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                          {rev.approved ? (
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => handleModerateReview(rev.id, false)}
+                            >
+                              Hide
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={() => handleModerateReview(rev.id, true)}
+                            >
+                              ✓ Approve
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDeleteReview(rev.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 7: SHARED CLIENT VAULT */}
+          {activeTab === "vault" && (
+            <div>
+              <div className="dash-header">
+                <h1>🔒 Shared Client Documents &amp; Notes</h1>
+                <p>Only student notes and uploaded scorecards/documents that the client has explicitly toggled <strong>"Share with Counsellor"</strong> appear here.</p>
+              </div>
+
+              <div className="card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+                    Shared Records ({vaultItems.length})
+                  </h3>
+                  <button className="btn btn-ghost btn-sm" onClick={loadSharedVault} disabled={loadingVault}>
+                    🔄 Refresh
+                  </button>
+                </div>
+
+                {loadingVault ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
+                    <div className="spinner" />
+                  </div>
+                ) : vaultItems.length === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-state-icon">🔒</div>
+                    <div className="empty-state-title">No shared items yet</div>
+                    <p className="empty-state-desc">
+                      When a student chooses to share their private session notes or academic documents with you, they will appear securely here.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    {vaultItems.map((item) => (
+                      <div
+                        key={item.id}
+                        style={{
+                          padding: "1rem",
+                          borderRadius: "var(--radius-sm)",
+                          background: "var(--surface-2)",
+                          border: "1px solid var(--border)",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                          <span className={`badge ${item.type === "document" ? "badge-primary" : "badge-secondary"}`}>
+                            {item.type === "document" ? "📄 Document" : "📝 Note"}
+                          </span>
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-light)" }}>
+                            Client ID: {item.userId}
+                          </span>
+                        </div>
+
+                        {item.type === "note" ? (
+                          <div>
+                            <h4 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.3rem" }}>
+                              {item.title || "Untitled Note"}
+                            </h4>
+                            <p style={{ fontSize: "0.9rem", color: "var(--text)", whiteSpace: "pre-line" }}>
+                              {item.content}
+                            </p>
+                          </div>
+                        ) : (
+                          <div>
+                            <h4 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.3rem" }}>
+                              {item.fileName || "Uploaded Document"}
+                            </h4>
+                            {item.fileSize && (
+                              <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                                Size: {Math.round(item.fileSize / 1024)} KB
+                              </span>
+                            )}
+                            {item.fileUrl && (
+                              <div style={{ marginTop: "0.5rem" }}>
+                                <a
+                                  href={item.fileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn btn-outline btn-sm"
+                                >
+                                  📥 View / Download Document
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

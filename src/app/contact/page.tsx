@@ -13,6 +13,7 @@ export default function ContactPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
+  const [hp, setHp] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -20,6 +21,17 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Honeypot bot protection
+    if (hp) {
+      setStatus("success");
+      setName("");
+      setEmail("");
+      setPhone("");
+      setMessage("");
+      return;
+    }
+
     if (!name.trim() || (!email.trim() && !phone.trim()) || !message.trim()) {
       setErrorMsg(
         lang === "hi"
@@ -259,6 +271,17 @@ export default function ContactPage() {
                     required
                   />
                 </div>
+
+                {/* Honeypot field for anti-spam bots */}
+                <input
+                  type="text"
+                  name="contact_confirm_id"
+                  value={hp}
+                  onChange={(e) => setHp(e.target.value)}
+                  style={{ display: "none" }}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
 
                 <button
                   type="submit"

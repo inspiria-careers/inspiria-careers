@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
+
+    function isCounsellor() {
+      return isAuthenticated() && (getUserRole() == 'counsellor' || getUserRole() == 'admin');
+    }
+
+    // ── 1. Users Collection ──
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      // On self-signup, role must default to 'client'
+      allow create: if isOwner(userId) && (!('role' in request.resource.data) || request.resource.data.role == 'client');
+      // Clients cannot escalate their own role; only admins can change roles
+      allow update: if (isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // ── 2. Site Content & Settings ──
+    match /siteContent/{document} {
+      allow read: if true;
+      allow write: if isCounsellor();
+    }
+
+    // ── 3. Appointments ──
+    match /appointments/{appointmentId} {
+      allow create: if true; // Public booking permitted
+      allow read: if isCounsellor() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update: if isCounsellor() || (isAuthenticated() && resource.data.userId == request.auth.uid && request.resource.data.status == 'cancelled');
+      allow delete: if isCounsellor() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+
+    // ── 4. Guidance Posts ──
+    match /posts/{postId} {
+      allow read: if resource.data.published == true || isCounsellor();
+      allow write: if isCounsellor();
+    }
+
+    // ── 5. Reviews ──
+    match /reviews/{reviewId} {
+      allow read: if resource.data.approved == true || isCounsellor();
+      // When submitting review, approved must default to false
+      allow create: if isAuthenticated() && request.resource.data.approved == false;
+      allow update, delete: if isCounsellor();
+    }
+
+    // ── 6. Client Notes (Sensitive - Confidential) ──
+    match /clientNotes/{noteId} {
+      // Admin has NO access; only owner, or counsellor if explicitly shared
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (resource.data.sharedWithCounsellor == true && getUserRole() == 'counsellor')
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // ── 7. Client Documents (Sensitive) ──
+    match /clientDocuments/{docId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (resource.data.sharedWithCounsellor == true && getUserRole() == 'counsellor')
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // ── 8. Contact Messages ──
+    match /messages/{messageId} {
+      allow create: if true;
+      allow read, update, delete: if isCounsellor();
+    }
+  }
+}

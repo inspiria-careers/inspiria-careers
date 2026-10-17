@@ -162,6 +162,29 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── Reviews Showcase Section ── */}
+      <section className="section" style={{ background: "var(--surface-2)" }} aria-labelledby="reviews-heading">
+        <div className="container">
+          <div className="section-header">
+            <div className="section-tag">{t("reviews", lang)}</div>
+            <h2 className="section-title" id="reviews-heading">
+              {lang === "hi" ? "छात्रों के <span>अनुभव</span>" : "What Students <span>Say</span>"}
+            </h2>
+            <p className="section-subtitle">
+              {lang === "hi"
+                ? "सत्यापित छात्रों और अभिभावकों की निष्पक्ष प्रतिक्रिया।"
+                : "Real reviews and genuine feedback from guided students and parents."}
+            </p>
+          </div>
+
+          <div style={{ textAlign: "center", marginBottom: "1rem" }}>
+            <Link href="/reviews" className="btn btn-outline btn-sm">
+              {lang === "hi" ? "सभी सत्यापित समीक्षाएं देखें →" : "View All Verified Reviews →"}
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ── CTA ── */}
       <section className="section" style={{ background: "var(--brand-primary)", color: "#fff", textAlign: "center" }} aria-label="Call to action">
         <div className="container" style={{ maxWidth: 680 }}>
@@ -173,7 +196,7 @@ export default function HomePage() {
               ? "हमारे अनुभवी परामर्शदाता के साथ एक सत्र बुक करें और अपने लक्ष्यों की ओर पहला कदम उठाएं।"
               : "Book a session with our experienced counsellor and take the first step towards your goals."}
           </p>
-          <Link href="/contact" className="btn btn-secondary btn-lg" id="cta-book-btn">
+          <Link href="/book" className="btn btn-secondary btn-lg" id="cta-book-btn">
             📅 {t("bookAppointment", lang)}
           </Link>
         </div>

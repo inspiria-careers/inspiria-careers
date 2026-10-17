@@ -36,12 +36,6 @@ export default function AdminDashboardPage() {
   }, [profile]);
 
   // Load users from Firestore
-  useEffect(() => {
-    if (activeTab === "users") {
-      loadUsers();
-    }
-  }, [activeTab]);
-
   const loadUsers = async () => {
     try {
       setLoadingUsers(true);
@@ -63,6 +57,12 @@ export default function AdminDashboardPage() {
       setLoadingUsers(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === "users") {
+      loadUsers();
+    }
+  }, [activeTab]);
 
   const handleRoleChange = async (targetUid: string, newRole: UserRole) => {
     try {
@@ -262,86 +262,193 @@ export default function AdminDashboardPage() {
           )}
 
           {/* TAB 2: THEME & BRANDING */}
-          {activeTab === "theme" && (
-            <div>
-              <div className="dash-header">
-                <h1>🎨 Theme &amp; Brand Colors</h1>
-                <p>Customize the 2 primary colors of the entire website. These instantly update across all components.</p>
+          {activeTab === "theme" && (() => {
+            const THEME_PRESETS = [
+              { name: "Calm Navy & Gold (Default)", primary: "#1a3a8f", secondary: "#c9a84c" },
+              { name: "Sage Green Serenity", primary: "#2e6f40", secondary: "#d4a373" },
+              { name: "Warm Terracotta & Sand", primary: "#8d4925", secondary: "#e09f3e" },
+              { name: "Slate & Lavender", primary: "#3d405b", secondary: "#81b29a" },
+              { name: "Emerald Trust", primary: "#0f5132", secondary: "#20c997" },
+            ];
+
+            // WCAG AA Luminance calculation
+            const getLuminance = (hex: string) => {
+              const clean = (hex || "#000000").replace("#", "");
+              if (clean.length !== 6) return 0.2;
+              const rgb = [
+                parseInt(clean.substr(0, 2), 16) / 255,
+                parseInt(clean.substr(2, 2), 16) / 255,
+                parseInt(clean.substr(4, 2), 16) / 255,
+              ].map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+              return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+            };
+
+            const l1 = getLuminance(formData.brandPrimary || "#1a3a8f");
+            const lWhite = 1.0;
+            const contrastRatio = ((Math.max(l1, lWhite) + 0.05) / (Math.min(l1, lWhite) + 0.05)).toFixed(2);
+            const isAccessible = parseFloat(contrastRatio) >= 4.5;
+
+            return (
+              <div>
+                <div className="dash-header">
+                  <h1>🎨 Theme Customiser &amp; Accessibility</h1>
+                  <p>Customize the 2 primary brand colors and typography. Choose from tested calm presets or customize manually.</p>
+                </div>
+
+                {saveSuccess && (
+                  <div className="alert alert-success" style={{ marginBottom: "1.25rem" }}>
+                    ✓ Brand theme updated successfully!
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveSettings} className="card" style={{ maxWidth: "680px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                    {/* Ready Presets */}
+                    <div>
+                      <label className="form-label" style={{ marginBottom: "0.5rem", display: "block" }}>
+                        ✨ Ready Theme Presets (Click to apply)
+                      </label>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "0.75rem" }}>
+                        {THEME_PRESETS.map((preset) => (
+                          <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() => {
+                              setFormData({
+                                ...formData,
+                                brandPrimary: preset.primary,
+                                brandSecondary: preset.secondary,
+                              });
+                            }}
+                            className="btn btn-ghost btn-sm"
+                            style={{
+                              justifyContent: "flex-start",
+                              padding: "0.6rem 0.75rem",
+                              border: formData.brandPrimary === preset.primary ? "2px solid var(--brand-primary)" : "1px solid var(--border)",
+                            }}
+                          >
+                            <span style={{ width: 14, height: 14, borderRadius: "50%", background: preset.primary, display: "inline-block" }} />
+                            <span style={{ width: 14, height: 14, borderRadius: "50%", background: preset.secondary, display: "inline-block", marginLeft: -6 }} />
+                            <span style={{ fontSize: "0.78rem", fontWeight: 600 }}>{preset.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Color pickers */}
+                    <div className="grid-2" style={{ gap: "1rem" }}>
+                      <div className="form-group">
+                        <label className="form-label">Primary Brand Color</label>
+                        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                          <input
+                            type="color"
+                            value={formData.brandPrimary || "#1a3a8f"}
+                            onChange={(e) => setFormData({ ...formData, brandPrimary: e.target.value })}
+                            style={{ width: 44, height: 38, border: "none", cursor: "pointer", borderRadius: 4 }}
+                          />
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={formData.brandPrimary}
+                            onChange={(e) => setFormData({ ...formData, brandPrimary: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Secondary / Accent Color</label>
+                        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                          <input
+                            type="color"
+                            value={formData.brandSecondary || "#c9a84c"}
+                            onChange={(e) => setFormData({ ...formData, brandSecondary: e.target.value })}
+                            style={{ width: 44, height: 38, border: "none", cursor: "pointer", borderRadius: 4 }}
+                          />
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={formData.brandSecondary}
+                            onChange={(e) => setFormData({ ...formData, brandSecondary: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Typography Selector */}
+                    <div className="form-group">
+                      <label className="form-label">Typography / Font Family</label>
+                      <select
+                        className="form-select"
+                        value={formData.fontFamily || "'Inter', sans-serif"}
+                        onChange={(e) => setFormData({ ...formData, fontFamily: e.target.value })}
+                      >
+                        <option value="'Inter', -apple-system, BlinkMacSystemFont, sans-serif">Inter (Modern & Clean Default)</option>
+                        <option value="'Plus Jakarta Sans', sans-serif">Plus Jakarta Sans (Soft & Contemporary)</option>
+                        <option value="'Outfit', sans-serif">Outfit (Authoritative & Warm)</option>
+                      </select>
+                    </div>
+
+                    {/* Accessibility Contrast Ratio Alert */}
+                    <div style={{ padding: "0.75rem 1rem", borderRadius: "var(--radius-sm)", background: isAccessible ? "#d4f5e9" : "#fff3cd", border: `1px solid ${isAccessible ? "#a8e8cf" : "#ffeeba"}` }}>
+                      <div style={{ fontSize: "0.85rem", fontWeight: 700, color: isAccessible ? "#1d9b5f" : "#856404" }}>
+                        {isAccessible ? "✓ Good Contrast" : "⚠️ Low Contrast Warning"} (Ratio: {contrastRatio}:1 on White)
+                      </div>
+                      <p style={{ fontSize: "0.78rem", color: isAccessible ? "#1d9b5f" : "#856404", marginTop: "0.2rem" }}>
+                        {isAccessible
+                          ? "WCAG AA standard passed (4.5:1 ratio). Text on white will remain clear and readable."
+                          : "Primary color might be too light for high contrast against white text. Recommended ratio is ≥ 4.5:1."}
+                      </p>
+                    </div>
+
+                    {/* Live Preview Card */}
+                    <div style={{ padding: "1.25rem", background: "var(--surface-2)", borderRadius: "var(--radius-sm)" }}>
+                      <div style={{ fontSize: "0.85rem", fontWeight: 700, marginBottom: "0.75rem" }}>Live Preview:</div>
+                      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          style={{ background: formData.brandPrimary, color: "#fff" }}
+                        >
+                          Primary Action
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          style={{ background: formData.brandSecondary, color: "#1e2a3a" }}
+                        >
+                          Accent Button
+                        </button>
+                        <span style={{ fontSize: "0.88rem", fontWeight: 700, color: formData.brandPrimary }}>
+                          Heading Sample
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Actions: Save & Reset */}
+                    <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                      <button type="submit" className="btn btn-primary" disabled={savingSettings}>
+                        {savingSettings ? "Saving Theme..." : "💾 Save Theme Settings"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => {
+                          setFormData({
+                            ...formData,
+                            brandPrimary: "#1a3a8f",
+                            brandSecondary: "#c9a84c",
+                            fontFamily: "'Inter', sans-serif",
+                          });
+                        }}
+                      >
+                        ↺ Reset to Default
+                      </button>
+                    </div>
+                  </div>
+                </form>
               </div>
-
-              {saveSuccess && (
-                <div className="alert alert-success" style={{ marginBottom: "1.25rem" }}>
-                  ✓ Brand theme colors updated successfully!
-                </div>
-              )}
-
-              <form onSubmit={handleSaveSettings} className="card" style={{ maxWidth: "640px" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                  <div className="form-group">
-                    <label className="form-label">Primary Brand Color (Dominant / Navbar / Headings)</label>
-                    <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-                      <input
-                        type="color"
-                        value={formData.brandPrimary || "#1a3a8f"}
-                        onChange={(e) => setFormData({ ...formData, brandPrimary: e.target.value })}
-                        style={{ width: 50, height: 40, border: "none", cursor: "pointer", borderRadius: 4 }}
-                      />
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={formData.brandPrimary}
-                        onChange={(e) => setFormData({ ...formData, brandPrimary: e.target.value })}
-                        style={{ maxWidth: 140 }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Secondary Brand Color (Accent / Gold / Highlights)</label>
-                    <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-                      <input
-                        type="color"
-                        value={formData.brandSecondary || "#c9a84c"}
-                        onChange={(e) => setFormData({ ...formData, brandSecondary: e.target.value })}
-                        style={{ width: 50, height: 40, border: "none", cursor: "pointer", borderRadius: 4 }}
-                      />
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={formData.brandSecondary}
-                        onChange={(e) => setFormData({ ...formData, brandSecondary: e.target.value })}
-                        style={{ maxWidth: 140 }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ padding: "1.25rem", background: "var(--surface-2)", borderRadius: "var(--radius-sm)" }}>
-                    <div style={{ fontSize: "0.85rem", fontWeight: 700, marginBottom: "0.5rem" }}>Live Preview:</div>
-                    <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        style={{ background: formData.brandPrimary, color: "#fff" }}
-                      >
-                        Primary Button
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        style={{ background: formData.brandSecondary, color: "#1e2a3a" }}
-                      >
-                        Accent Button
-                      </button>
-                    </div>
-                  </div>
-
-                  <button type="submit" className="btn btn-primary" disabled={savingSettings}>
-                    {savingSettings ? "Saving Theme..." : "💾 Save Theme Colors"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
+            );
+          })()}
 
           {/* TAB 3: SITE SETTINGS & CONTENT */}
           {activeTab === "settings" && (
