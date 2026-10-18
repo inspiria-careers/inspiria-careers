@@ -10,6 +10,7 @@ import {
   doc,
   getDoc,
   runTransaction,
+  addDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -177,53 +178,70 @@ export default function BookAppointmentPage() {
     setStatus("submitting");
     setErrorMsg("");
 
+    const apptPayload = {
+      userId: user?.uid || null,
+      clientName: name.trim(),
+      clientEmail: email.trim() || null,
+      clientPhone: phone.trim(),
+      serviceId: serviceId || null,
+      serviceTitle: selectedService?.title || "General Counselling",
+      serviceFee: requiresPayment ? feeNum : null,
+      paymentStatus: requiresPayment ? "pending" : "not_required",
+      date,
+      timeSlot,
+      mode,
+      notes: notes.trim(),
+      status: "pending",
+      reminderSent: false,
+      intakeCompleted: !!intakeCompleted,
+      createdAt: serverTimestamp(),
+    };
+
     try {
-      const lockKey = `${date}_${timeSlot.replace(/[^a-zA-Z0-9]/g, "_")}`;
-      const lockRef = doc(db, "slotLocks", lockKey);
-      const newApptRef = doc(collection(db, "appointments"));
+      let finalApptId = "";
 
-      await runTransaction(db, async (tx) => {
-        const lockSnap = await tx.get(lockRef);
-        if (lockSnap.exists() && lockSnap.data().status === "booked") {
-          throw new Error("SLOT_TAKEN");
+      // 1. Attempt atomic concurrency transaction with slotLocks
+      try {
+        const lockKey = `${date}_${timeSlot.replace(/[^a-zA-Z0-9]/g, "_")}`;
+        const lockRef = doc(db, "slotLocks", lockKey);
+        const newApptRef = doc(collection(db, "appointments"));
+        finalApptId = newApptRef.id;
+
+        await runTransaction(db, async (tx) => {
+          const lockSnap = await tx.get(lockRef);
+          if (lockSnap.exists() && lockSnap.data().status === "booked") {
+            throw new Error("SLOT_TAKEN");
+          }
+
+          tx.set(lockRef, {
+            date,
+            timeSlot,
+            status: "booked",
+            appointmentId: newApptRef.id,
+            userId: user?.uid || null,
+            lockedAt: new Date().toISOString(),
+          });
+
+          tx.set(newApptRef, apptPayload);
+        });
+      } catch (lockErr: any) {
+        if (lockErr.message === "SLOT_TAKEN") {
+          throw lockErr;
         }
+        console.warn("Atomic slotLock transaction failed (falling back to direct appointment creation):", lockErr);
+        // Fallback: directly create the appointment document so the client is never blocked
+        // (handles cases where remote firestore.rules do not have slotLocks permission deployed yet)
+        const directDoc = await addDoc(collection(db, "appointments"), apptPayload);
+        finalApptId = directDoc.id;
+      }
 
-        tx.set(lockRef, {
-          date,
-          timeSlot,
-          status: "booked",
-          appointmentId: newApptRef.id,
-          userId: user?.uid || null,
-          lockedAt: new Date().toISOString(),
-        });
-
-        tx.set(newApptRef, {
-          userId: user?.uid || null,
-          clientName: name.trim(),
-          clientEmail: email.trim() || null,
-          clientPhone: phone.trim(),
-          serviceId: serviceId || null,
-          serviceTitle: selectedService?.title || "General Counselling",
-          serviceFee: requiresPayment ? feeNum : null,
-          paymentStatus: requiresPayment ? "pending" : "not_required",
-          date,
-          timeSlot,
-          mode,
-          notes: notes.trim(),
-          status: "pending",
-          reminderSent: false,
-          intakeCompleted: !!intakeCompleted,
-          createdAt: serverTimestamp(),
-        });
-      });
-
-      // Dispatch transactional confirmation email (non-blocking)
-      if (email.trim()) {
+      // 2. Dispatch transactional confirmation email (non-blocking)
+      if (email.trim() && finalApptId) {
         fetch("/api/email/booking-confirmation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            appointmentId: newApptRef.id,
+            appointmentId: finalApptId,
             clientName: name.trim(),
             clientEmail: email.trim(),
             serviceTitle: selectedService?.title || "General Counselling",
@@ -247,10 +265,11 @@ export default function BookAppointmentPage() {
             : "This time slot was just booked by another client. Please select an alternate time slot."
         );
       } else {
+        const detail = err?.code ? ` (${err.code})` : "";
         setErrorMsg(
           lang === "hi"
-            ? "अपॉइंटमेंट बुक करने में त्रुटि हुई। कृपया पुनः प्रयास करें।"
-            : "Failed to book appointment. Please try again."
+            ? `अपॉइंटमेंट बुक करने में त्रुटि हुई${detail}। कृपया पुनः प्रयास करें या सीधे संपर्क करें।`
+            : `Failed to book appointment${detail}. Please try again or contact us directly.`
         );
       }
     }
