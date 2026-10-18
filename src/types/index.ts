@@ -52,7 +52,7 @@ export interface ResourceItem {
   title: string;
   description: string;
   category: "career" | "wellness" | "exam_prep" | "mindfulness" | "other";
-  type: "pdf" | "link" | "audio" | "article";
+  type: "pdf" | "link" | "audio" | "article" | "video";
   url: string;
   content?: string;
   visibility: "public" | "client_only";

@@ -188,6 +188,25 @@ export default function BookAppointmentPage() {
         });
       });
 
+      // Dispatch transactional confirmation email (non-blocking)
+      if (email.trim()) {
+        fetch("/api/email/booking-confirmation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            appointmentId: newApptRef.id,
+            clientName: name.trim(),
+            clientEmail: email.trim(),
+            serviceTitle: selectedService?.title || "General Counselling",
+            date,
+            timeSlot,
+            mode,
+            counsellorName: profile.counsellorName || "Principal Ma'am",
+            type: "booking_received",
+          }),
+        }).catch((mailErr) => console.warn("Confirmation email non-blocking error:", mailErr));
+      }
+
       setStatus("success");
     } catch (err: any) {
       console.error("Booking error:", err);
@@ -342,6 +361,13 @@ export default function BookAppointmentPage() {
                 </h2>
                 <p style={{ color: "var(--text-muted)", maxWidth: "480px", margin: "0 auto 1.75rem", lineHeight: 1.7 }}>
                   {t("bookingSuccess", lang)}
+                  {email.trim() && (
+                    <span style={{ display: "block", marginTop: "0.6rem", fontSize: "0.92rem", color: "var(--brand-primary)", fontWeight: 600 }}>
+                      📧 {lang === "hi"
+                        ? `पुष्टिकरण ईमेल ${email.trim()} पर भेजा गया है।`
+                        : `A confirmation email has been dispatched to ${email.trim()}.`}
+                    </span>
+                  )}
                 </p>
 
                 <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>

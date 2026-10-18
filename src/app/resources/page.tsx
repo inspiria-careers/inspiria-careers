@@ -149,7 +149,11 @@ export default function ResourcesPage() {
                         className="btn btn-primary btn-sm"
                         style={{ width: "100%", justifyContent: "center" }}
                       >
-                        📥 Download / Open Resource
+                        {res.type === "video"
+                          ? "▶️ Watch Video"
+                          : res.type === "pdf"
+                          ? "📥 Download PDF / Worksheet"
+                          : "🔗 Open Resource"}
                       </a>
                     ) : (
                       <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Available in Consultation</span>

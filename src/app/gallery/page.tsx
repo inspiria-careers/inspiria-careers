@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
+import { formatVideoEmbedUrl, isDirectVideoUrl } from "@/lib/videoUtils";
 
 type Filter = "All" | "photo" | "video";
 
@@ -66,12 +67,22 @@ export default function GalleryPage() {
                         style={{ width: "100%", height: 220, objectFit: "cover" }}
                         loading="lazy"
                       />
+                    ) : isDirectVideoUrl(item.url) ? (
+                      <div style={{ position: "relative", paddingBottom: "56.25%", background: "#000" }}>
+                        <video
+                          src={item.url}
+                          controls
+                          playsInline
+                          style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "contain" }}
+                        />
+                      </div>
                     ) : (
                       <div style={{ position: "relative", paddingBottom: "56.25%", background: "#000" }}>
                         <iframe
-                          src={item.url.replace("watch?v=", "embed/")}
-                          title={item.caption}
+                          src={formatVideoEmbedUrl(item.url)}
+                          title={item.caption || "Gallery video"}
                           allowFullScreen
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
                           loading="lazy"
                         />

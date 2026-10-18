@@ -13,7 +13,8 @@ import {
   where,
   limit,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite, ServiceItem, GalleryItem, SiteProfile } from "@/contexts/SiteContext";
 import { slugify } from "@/lib/imageUtils";
@@ -160,6 +161,8 @@ export default function CounsellorDashboardPage() {
     visibility: "public",
   });
   const [savingResource, setSavingResource] = useState(false);
+  const [uploadingResourceFile, setUploadingResourceFile] = useState(false);
+  const [uploadedResourceFileName, setUploadedResourceFileName] = useState<string | null>(null);
 
   // Deletion requests queue state
   const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>([]);
@@ -410,10 +413,43 @@ export default function CounsellorDashboardPage() {
         url: "",
         visibility: "public",
       });
+      setUploadedResourceFileName(null);
     } catch (err: any) {
       alert("Failed to create resource: " + err.message);
     } finally {
       setSavingResource(false);
+    }
+  };
+
+  const handleResourceFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert("File size exceeds 10MB limit.");
+      return;
+    }
+    setUploadingResourceFile(true);
+    try {
+      const sRef = ref(storage, `resources/${Date.now()}_${file.name}`);
+      await uploadBytes(sRef, file);
+      const downloadUrl = await getDownloadURL(sRef);
+      setNewResource((prev) => ({
+        ...prev,
+        url: downloadUrl,
+        type: file.type.includes("pdf")
+          ? "pdf"
+          : file.type.startsWith("audio")
+          ? "audio"
+          : file.type.startsWith("video")
+          ? "video"
+          : prev.type || "pdf",
+      }));
+      setUploadedResourceFileName(file.name);
+    } catch (err: any) {
+      console.error("Resource file upload error:", err);
+      alert("Failed to upload file. Please try again.");
+    } finally {
+      setUploadingResourceFile(false);
     }
   };
 
@@ -689,6 +725,27 @@ export default function CounsellorDashboardPage() {
         details: `Verified payment of ₹${appt.serviceFee} (UTR: ${appt.utrNumber}) for client ${appt.clientName}. Issued receipt ${receiptNo}.`,
         targetId: appt.id,
       });
+
+      // Dispatch confirmation email to client
+      if (appt.clientEmail) {
+        fetch("/api/email/booking-confirmation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            appointmentId: appt.id,
+            clientName: appt.clientName,
+            clientEmail: appt.clientEmail,
+            serviceTitle: appt.serviceTitle,
+            date: appt.date,
+            timeSlot: appt.timeSlot,
+            mode: appt.mode,
+            meetingLink: appt.meetingLink || "",
+            officeAddress: profile.address,
+            counsellorName: profile.counsellorName || "Principal Ma'am",
+            type: "booking_confirmed",
+          }),
+        }).catch((e) => console.warn("Email confirmation on verify error:", e));
+      }
 
       alert(`✓ Payment verified! Appointment confirmed and receipt ${receiptNo} issued.`);
     } catch (err) {
@@ -991,6 +1048,28 @@ export default function CounsellorDashboardPage() {
         details: `Updated appointment ${id} status to ${newStatus}`,
         targetId: id,
       });
+
+      // Dispatch notification email if client email is present
+      const target = appointments.find((a) => a.id === id);
+      if (target?.clientEmail && (newStatus === "confirmed" || newStatus === "cancelled")) {
+        fetch("/api/email/booking-confirmation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            appointmentId: id,
+            clientName: target.clientName,
+            clientEmail: target.clientEmail,
+            serviceTitle: target.serviceTitle,
+            date: target.date,
+            timeSlot: target.timeSlot,
+            mode: target.mode,
+            meetingLink: target.meetingLink || "",
+            officeAddress: profile.address,
+            counsellorName: profile.counsellorName || "Principal Ma'am",
+            type: newStatus === "confirmed" ? "booking_confirmed" : "booking_cancelled",
+          }),
+        }).catch((e) => console.warn("Email dispatch on status change error:", e));
+      }
     } catch (err) {
       console.error("Update appointment status error:", err);
       alert("Failed to update status.");
@@ -3874,6 +3953,7 @@ export default function CounsellorDashboardPage() {
                             onChange={(e) => setNewResource({ ...newResource, type: e.target.value as any })}
                           >
                             <option value="pdf">PDF Document</option>
+                            <option value="video">Video (YouTube / MP4 / Link)</option>
                             <option value="link">Web Link</option>
                             <option value="audio">Audio Exercise</option>
                             <option value="article">Article</option>
@@ -3881,14 +3961,45 @@ export default function CounsellorDashboardPage() {
                         </div>
                       </div>
                       <div className="form-group">
-                        <label className="form-label">Resource URL / Direct Link</label>
-                        <input
-                          type="url"
-                          value={newResource.url || ""}
-                          onChange={(e) => setNewResource({ ...newResource, url: e.target.value })}
-                          className="form-input"
-                          placeholder="https://drive.google.com/... or /path/to/doc.pdf"
-                        />
+                        <label className="form-label">Resource File or Link *</label>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
+                            <label
+                              className="btn btn-outline btn-sm"
+                              style={{ cursor: uploadingResourceFile ? "wait" : "pointer", display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
+                            >
+                              <span>📁 {uploadingResourceFile ? "Uploading File..." : "Upload Document / PDF from Device"}</span>
+                              <input
+                                type="file"
+                                accept="application/pdf,audio/*,image/*,video/*"
+                                style={{ display: "none" }}
+                                onChange={handleResourceFileUpload}
+                                disabled={uploadingResourceFile}
+                              />
+                            </label>
+                            {uploadedResourceFileName && (
+                              <span style={{ fontSize: "0.82rem", color: "#16a34a", fontWeight: 600 }}>
+                                ✅ {uploadedResourceFileName}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                            {lang === "hi"
+                              ? "या सीधे वेब / यूट्यूब / गूगल ड्राइव लिंक दर्ज करें:"
+                              : "Or enter direct Web / YouTube / Google Drive URL below:"}
+                          </div>
+                          <input
+                            type="url"
+                            value={newResource.url || ""}
+                            onChange={(e) => {
+                              setNewResource({ ...newResource, url: e.target.value });
+                              setUploadedResourceFileName(null);
+                            }}
+                            className="form-input"
+                            placeholder="https://www.youtube.com/watch?v=... or https://drive.google.com/..."
+                            required
+                          />
+                        </div>
                       </div>
                       <div className="form-group">
                         <label className="form-label">Visibility</label>

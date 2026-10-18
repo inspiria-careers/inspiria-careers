@@ -13,7 +13,16 @@ All notable changes to this project will be documented in this file.
   - Enhanced `/book` booking flow: services without an explicit fee automatically fall back to the counsellor's default consultation fee, with live fee display badge ("₹X" or "Free / निःशुल्क").
 - **Client Profile & Details Self-Service Editing**:
   - Expanded `/dashboard/client` Profile tab allowing registered clients/users to edit their Full Name (`displayName`), Phone Number (`phone`), and Profile Photo / Avatar with direct device upload via `ImageUploader`.
-  - Added `refreshUser` hook to `AuthContext` to immediately synchronize updated profile data throughout the application without page reload.
+- **Transactional Booking & Appointment Email Service**:
+  - Implemented `/api/email/booking-confirmation` providing automated bilingual emails for booking received, session confirmation, and cancellations.
+  - Automatically sends live emails via Resend HTTP API when `RESEND_API_KEY` is configured in `.env.local`, with zero-crash safe dry-run console fallback during development.
+  - Booking page (`/book`) and Counsellor dashboard automatically trigger confirmation emails with verified session date, time, and location/meeting link.
+- **Universal Video & Media Embed Engine**:
+  - Added `src/lib/videoUtils.ts` with automated parsing of YouTube standard links (`watch?v=`), short links (`youtu.be/`), Shorts (`shorts/`), Vimeo embeds, and direct HTML5 MP4/WebM video players in Gallery and Resources.
+- **Direct Document & PDF Upload in Educational Resources**:
+  - Added direct device file uploader in Counsellor Dashboard (`/dashboard/counsellor → Resource Hub`) allowing counselors to upload PDFs, worksheets, audio, or video files up to 10MB to Cloud Storage alongside external links.
+- **Client & Counsellor Messaging Attachments**:
+  - Documented and refined peer-to-peer asynchronous messaging attachment exchange (PDF, JPG, PNG up to 5MB) via Cloud Storage with private per-client isolation.
 
 ## [Phase 7.0.0] - 2026-10-18
 
