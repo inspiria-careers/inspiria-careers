@@ -183,6 +183,15 @@ export default function CounsellorDashboardPage() {
     fee: undefined,
   });
   const [savingServices, setSavingServices] = useState(false);
+  const [savingDefaultFee, setSavingDefaultFee] = useState(false);
+  const [defaultFeeSuccess, setDefaultFeeSuccess] = useState(false);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [editServiceForm, setEditServiceForm] = useState<{ icon: string; title: string; description: string; fee?: number }>({
+    icon: "🎯",
+    title: "",
+    description: "",
+    fee: undefined,
+  });
 
   useEffect(() => {
     setServicesList(services);
@@ -851,6 +860,78 @@ export default function CounsellorDashboardPage() {
       details: `Deleted service ${id}`,
       targetId: id,
     });
+  };
+
+  const handleStartEditService = (s: ServiceItem) => {
+    setEditingServiceId(s.id);
+    setEditServiceForm({
+      icon: s.icon,
+      title: s.title,
+      description: s.description,
+      fee: s.fee,
+    });
+  };
+
+  const handleCancelEditService = () => {
+    setEditingServiceId(null);
+  };
+
+  const handleSaveEditService = async (id: string) => {
+    if (!editServiceForm.title.trim() || !editServiceForm.description.trim()) {
+      alert("Service title and description are required.");
+      return;
+    }
+    const updated = servicesList.map((s) =>
+      s.id === id
+        ? {
+            ...s,
+            icon: editServiceForm.icon || "🎯",
+            title: editServiceForm.title.trim(),
+            description: editServiceForm.description.trim(),
+            fee: editServiceForm.fee !== undefined && editServiceForm.fee !== null && Number(editServiceForm.fee) > 0 ? Number(editServiceForm.fee) : undefined,
+          }
+        : s
+    );
+    setServicesList(updated);
+    setEditingServiceId(null);
+    try {
+      setSavingServices(true);
+      await updateServices(updated);
+      await logAuditEvent({
+        actorUid: user?.uid || "",
+        actorEmail: user?.email || null,
+        actorRole: role || "counsellor",
+        action: "UPDATE_SERVICE",
+        details: `Updated service ${id} (${editServiceForm.title})`,
+        targetId: id,
+      });
+    } finally {
+      setSavingServices(false);
+    }
+  };
+
+  const handleSaveDefaultFee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSavingDefaultFee(true);
+      setDefaultFeeSuccess(false);
+      const newFee = Number(profileForm.defaultConsultationFee) || 0;
+      await updateProfile({ defaultConsultationFee: newFee });
+      await logAuditEvent({
+        actorUid: user?.uid || "",
+        actorEmail: user?.email || null,
+        actorRole: role || "counsellor",
+        action: "UPDATE_BOOKING_FEE",
+        details: `Updated standard consultation booking price to ₹${newFee}`,
+      });
+      setDefaultFeeSuccess(true);
+      setTimeout(() => setDefaultFeeSuccess(false), 3000);
+    } catch (err) {
+      console.error("Error saving booking fee:", err);
+      alert("Failed to update booking fee.");
+    } finally {
+      setSavingDefaultFee(false);
+    }
   };
 
   // Add & Save Gallery Item
@@ -1759,6 +1840,21 @@ export default function CounsellorDashboardPage() {
                           placeholder="e.g. Dr. Ananya Sharma / Inspiria Careers"
                         />
                       </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Standard Consultation Booking Fee (₹ INR)</label>
+                        <input
+                          type="number"
+                          className="form-input"
+                          min={0}
+                          value={profileForm.defaultConsultationFee !== undefined ? profileForm.defaultConsultationFee : ""}
+                          onChange={(e) => setProfileForm({ ...profileForm, defaultConsultationFee: e.target.value ? Number(e.target.value) : 0 })}
+                          placeholder="e.g. 500 (0 for Free)"
+                        />
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                          Standard session booking fee applied across services unless a service has an individual price.
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -1907,6 +2003,47 @@ export default function CounsellorDashboardPage() {
                 <p>Add and configure counselling services. These automatically show on the public Services page and in the booking dropdown.</p>
               </div>
 
+              {/* Standard Consultation Booking Price Card */}
+              <form onSubmit={handleSaveDefaultFee} className="card" style={{ marginBottom: "2rem", border: "1.5px solid var(--brand-primary)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
+                  <div>
+                    <h3 style={{ fontSize: "1.15rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "0.35rem" }}>
+                      💰 Standard Consultation Booking Price (₹ INR)
+                    </h3>
+                    <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0, maxWidth: 650, lineHeight: 1.5 }}>
+                      Set the default fee for student and parent consultation bookings. When a service doesn't have an individual custom fee, this standard price will apply across the website. (Enter 0 for Free).
+                    </p>
+                  </div>
+                  {defaultFeeSuccess && (
+                    <span className="badge badge-success" style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }}>
+                      ✓ Booking Price Saved!
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "1.25rem", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text)" }}>₹</span>
+                    <input
+                      type="number"
+                      className="form-input"
+                      min={0}
+                      step={50}
+                      value={profileForm.defaultConsultationFee !== undefined ? profileForm.defaultConsultationFee : ""}
+                      onChange={(e) => setProfileForm({ ...profileForm, defaultConsultationFee: e.target.value ? Number(e.target.value) : 0 })}
+                      placeholder="e.g. 500"
+                      style={{ width: "160px", fontWeight: 700, fontSize: "1.05rem" }}
+                    />
+                  </div>
+                  <button type="submit" className="btn btn-primary" disabled={savingDefaultFee}>
+                    {savingDefaultFee ? "Saving..." : "💾 Update Standard Booking Price"}
+                  </button>
+                  <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                    Current Active: <strong>{profile.defaultConsultationFee ? `₹${profile.defaultConsultationFee}` : "Free of Cost"}</strong>
+                  </span>
+                </div>
+              </form>
+
               {/* Add Service Card */}
               <form onSubmit={handleAddService} className="card" style={{ marginBottom: "2rem" }}>
                 <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "1rem" }}>
@@ -1944,10 +2081,10 @@ export default function CounsellorDashboardPage() {
                     min={0}
                     value={newService.fee !== undefined ? newService.fee : ""}
                     onChange={(e) => setNewService({ ...newService, fee: e.target.value ? Number(e.target.value) : undefined })}
-                    placeholder="e.g. 500 (Leave blank for Free/Included)"
+                    placeholder="e.g. 500 (Leave blank to use Standard Booking Price)"
                   />
                   <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                    If 0 or empty, clients skip the payment step when booking this service.
+                    Leave blank to automatically use the standard consultation booking price. Enter 0 for Free.
                   </span>
                 </div>
 
@@ -1985,37 +2122,115 @@ export default function CounsellorDashboardPage() {
                       <div
                         key={srv.id}
                         style={{
-                          display: "flex",
-                          alignItems: "flex-start",
-                          justifyContent: "space-between",
-                          padding: "1rem",
+                          padding: "1.25rem",
                           borderRadius: "var(--radius-sm)",
                           background: "var(--surface-2)",
                           border: "1px solid var(--border)",
-                          gap: "1rem",
                         }}
                       >
-                        <div style={{ display: "flex", gap: "1rem" }}>
-                          <span style={{ fontSize: "1.8rem" }}>{srv.icon}</span>
-                          <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                              <h4 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text)" }}>{srv.title}</h4>
-                              <span className="badge badge-primary">
-                                {srv.fee ? formatInr(srv.fee) : "Free / Included"}
-                              </span>
+                        {editingServiceId === srv.id ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                            <div className="grid-2" style={{ gap: "1rem" }}>
+                              <div className="form-group" style={{ maxWidth: 100 }}>
+                                <label className="form-label">Icon</label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={editServiceForm.icon}
+                                  onChange={(e) => setEditServiceForm({ ...editServiceForm, icon: e.target.value })}
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label className="form-label">Service Title</label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={editServiceForm.title}
+                                  onChange={(e) => setEditServiceForm({ ...editServiceForm, title: e.target.value })}
+                                />
+                              </div>
                             </div>
-                            <p style={{ fontSize: "0.88rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
-                              {srv.description}
-                            </p>
+                            <div className="form-group">
+                              <label className="form-label">Consultation Fee (₹ INR, leave blank to use Standard Price)</label>
+                              <input
+                                type="number"
+                                className="form-input"
+                                min={0}
+                                value={editServiceForm.fee !== undefined ? editServiceForm.fee : ""}
+                                onChange={(e) => setEditServiceForm({ ...editServiceForm, fee: e.target.value ? Number(e.target.value) : undefined })}
+                                placeholder="Leave blank for Standard Price"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label">Description</label>
+                              <textarea
+                                className="form-textarea"
+                                rows={3}
+                                value={editServiceForm.description}
+                                onChange={(e) => setEditServiceForm({ ...editServiceForm, description: e.target.value })}
+                              />
+                            </div>
+                            <div style={{ display: "flex", gap: "0.75rem" }}>
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                onClick={() => handleSaveEditService(srv.id)}
+                                disabled={savingServices}
+                              >
+                                {savingServices ? "Saving..." : "✓ Save Changes"}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={handleCancelEditService}
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDeleteService(srv.id)}
-                        >
-                          Delete
-                        </button>
+                        ) : (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              justifyContent: "space-between",
+                              gap: "1rem",
+                            }}
+                          >
+                            <div style={{ display: "flex", gap: "1rem" }}>
+                              <span style={{ fontSize: "1.8rem" }}>{srv.icon}</span>
+                              <div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                  <h4 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text)" }}>{srv.title}</h4>
+                                  <span className="badge badge-primary">
+                                    {srv.fee !== undefined && srv.fee !== null
+                                      ? (Number(srv.fee) > 0 ? formatInr(srv.fee) : "Free of Cost")
+                                      : (profile.defaultConsultationFee ? `${formatInr(profile.defaultConsultationFee)} (Standard)` : "Free / Included")}
+                                  </span>
+                                </div>
+                                <p style={{ fontSize: "0.88rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+                                  {srv.description}
+                                </p>
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: "0.5rem" }}>
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                onClick={() => handleStartEditService(srv)}
+                              >
+                                ✏️ Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                onClick={() => handleDeleteService(srv.id)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

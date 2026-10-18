@@ -4,8 +4,9 @@ import Link from "next/link";
 import { collection, getDocs, doc, updateDoc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
-import { useSite, SiteProfile } from "@/contexts/SiteContext";
+import { useSite, SiteProfile, ServiceItem, GalleryItem } from "@/contexts/SiteContext";
 import { logAuditEvent, AuditLogEntry } from "@/lib/auditLog";
+import { formatInr } from "@/lib/paymentUtils";
 import ImageUploader from "@/components/ImageUploader";
 import { t } from "@/translations";
 
@@ -20,9 +21,11 @@ interface FirestoreUser {
 
 export default function AdminDashboardPage() {
   const { user, role, loading: authLoading, sendPasswordReset } = useAuth();
-  const { profile, updateProfile, lang } = useSite();
+  const { profile, services, gallery, updateProfile, updateServices, updateGallery, lang } = useSite();
 
-  const [activeTab, setActiveTab] = useState<"users" | "audit" | "export" | "theme" | "settings">("users");
+  const [activeTab, setActiveTab] = useState<
+    "users" | "counsellor" | "services" | "gallery" | "settings" | "booking" | "faqs" | "features" | "theme" | "audit" | "export"
+  >("users");
 
   // User management state
   const [usersList, setUsersList] = useState<FirestoreUser[]>([]);
@@ -38,9 +41,44 @@ export default function AdminDashboardPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Services management state (Admin full control)
+  const [servicesList, setServicesList] = useState<ServiceItem[]>(services);
+  const [newService, setNewService] = useState<{ icon: string; title: string; description: string; fee?: number }>({
+    icon: "🎯",
+    title: "",
+    description: "",
+    fee: undefined,
+  });
+  const [savingServices, setSavingServices] = useState(false);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [editServiceForm, setEditServiceForm] = useState<{ icon: string; title: string; description: string; fee?: number }>({
+    icon: "🎯",
+    title: "",
+    description: "",
+    fee: undefined,
+  });
+
+  // Gallery management state (Admin full control)
+  const [galleryList, setGalleryList] = useState<GalleryItem[]>(gallery);
+  const [newGalleryItem, setNewGalleryItem] = useState<{ type: "photo" | "video"; url: string; caption: string; category: string }>({
+    type: "photo",
+    url: "",
+    caption: "",
+    category: "Campus & Seminars",
+  });
+  const [savingGallery, setSavingGallery] = useState(false);
+
   useEffect(() => {
     setFormData(profile);
   }, [profile]);
+
+  useEffect(() => {
+    setServicesList(services);
+  }, [services]);
+
+  useEffect(() => {
+    setGalleryList(gallery);
+  }, [gallery]);
 
   // Load users from Firestore
   const loadUsers = async () => {
@@ -173,6 +211,195 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Admin Services Handlers
+  const handleAddService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newService.title.trim() || !newService.description.trim()) return;
+
+    const item: ServiceItem = {
+      id: "srv_" + Date.now(),
+      icon: newService.icon || "🎯",
+      title: newService.title.trim(),
+      description: newService.description.trim(),
+      fee: newService.fee || undefined,
+    };
+
+    const updated = [...servicesList, item];
+    setServicesList(updated);
+    setNewService({ icon: "🎯", title: "", description: "", fee: undefined });
+
+    try {
+      setSavingServices(true);
+      await updateServices(updated);
+      await logAuditEvent({
+        actorUid: user?.uid || "",
+        actorEmail: user?.email || null,
+        actorRole: role || "admin",
+        action: "ADMIN_ADD_SERVICE",
+        details: `Added new service: ${item.title} (Fee: ${item.fee || "Standard/Included"})`,
+        targetId: item.id,
+      });
+    } finally {
+      setSavingServices(false);
+    }
+  };
+
+  const handleDeleteService = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this service?")) return;
+    const updated = servicesList.filter((s) => s.id !== id);
+    setServicesList(updated);
+    await updateServices(updated);
+    await logAuditEvent({
+      actorUid: user?.uid || "",
+      actorEmail: user?.email || null,
+      actorRole: role || "admin",
+      action: "ADMIN_DELETE_SERVICE",
+      details: `Deleted service ${id}`,
+      targetId: id,
+    });
+  };
+
+  const handleStartEditService = (s: ServiceItem) => {
+    setEditingServiceId(s.id);
+    setEditServiceForm({
+      icon: s.icon,
+      title: s.title,
+      description: s.description,
+      fee: s.fee,
+    });
+  };
+
+  const handleSaveEditService = async (id: string) => {
+    if (!editServiceForm.title.trim() || !editServiceForm.description.trim()) {
+      alert("Service title and description are required.");
+      return;
+    }
+    const updated = servicesList.map((s) =>
+      s.id === id
+        ? {
+            ...s,
+            icon: editServiceForm.icon || "🎯",
+            title: editServiceForm.title.trim(),
+            description: editServiceForm.description.trim(),
+            fee: editServiceForm.fee !== undefined && editServiceForm.fee !== null && Number(editServiceForm.fee) > 0 ? Number(editServiceForm.fee) : undefined,
+          }
+        : s
+    );
+    setServicesList(updated);
+    setEditingServiceId(null);
+    try {
+      setSavingServices(true);
+      await updateServices(updated);
+      await logAuditEvent({
+        actorUid: user?.uid || "",
+        actorEmail: user?.email || null,
+        actorRole: role || "admin",
+        action: "ADMIN_UPDATE_SERVICE",
+        details: `Updated service ${id} (${editServiceForm.title})`,
+        targetId: id,
+      });
+    } finally {
+      setSavingServices(false);
+    }
+  };
+
+  // Admin Gallery Handlers
+  const handleAddGalleryItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGalleryItem.url.trim()) {
+      alert("Please upload a photo or enter a video link first.");
+      return;
+    }
+
+    const item: GalleryItem = {
+      id: "gal_" + Date.now(),
+      type: newGalleryItem.type,
+      url: newGalleryItem.url.trim(),
+      caption: newGalleryItem.caption.trim(),
+      category: newGalleryItem.category.trim() || "Campus & Seminars",
+    };
+
+    const updated = [item, ...galleryList];
+    setGalleryList(updated);
+    setNewGalleryItem({ type: "photo", url: "", caption: "", category: "Campus & Seminars" });
+
+    try {
+      setSavingGallery(true);
+      await updateGallery(updated);
+      await logAuditEvent({
+        actorUid: user?.uid || "",
+        actorEmail: user?.email || null,
+        actorRole: role || "admin",
+        action: "ADMIN_ADD_GALLERY_ITEM",
+        details: `Added ${item.type} to gallery: ${item.caption || item.id}`,
+        targetId: item.id,
+      });
+    } finally {
+      setSavingGallery(false);
+    }
+  };
+
+  const handleDeleteGalleryItem = async (id: string) => {
+    if (!confirm("Remove this media item from the gallery?")) return;
+    const updated = galleryList.filter((g) => g.id !== id);
+    setGalleryList(updated);
+    await updateGallery(updated);
+    await logAuditEvent({
+      actorUid: user?.uid || "",
+      actorEmail: user?.email || null,
+      actorRole: role || "admin",
+      action: "ADMIN_DELETE_GALLERY_ITEM",
+      details: `Removed gallery item ${id}`,
+      targetId: id,
+    });
+  };
+
+  // Admin FAQ Handlers
+  const handleAddFaq = () => {
+    const newFaq = {
+      id: "faq-" + Date.now(),
+      category: "booking" as const,
+      questionEn: "New Question Title",
+      questionHi: "नया प्रश्न",
+      answerEn: "Detailed answer explaining the process...",
+      answerHi: "विस्तृत उत्तर यहाँ लिखें...",
+    };
+    setFormData({
+      ...formData,
+      faqList: [...(formData.faqList || []), newFaq],
+    });
+  };
+
+  const handleDeleteFaq = (id: string) => {
+    setFormData({
+      ...formData,
+      faqList: (formData.faqList || []).filter((f) => f.id !== id),
+    });
+  };
+
+  // Admin Helpline Handlers
+  const handleAddHelpline = () => {
+    const newHelp = {
+      id: "help-" + Date.now(),
+      name: "Emergency Support Helpline",
+      number: "112",
+      descEn: "24x7 Emergency Services",
+      descHi: "24x7 आपातकालीन सहायता",
+      available: "24x7",
+    };
+    setFormData({
+      ...formData,
+      emergencyHelplines: [...(formData.emergencyHelplines || []), newHelp],
+    });
+  };
+
+  const handleDeleteHelpline = (id: string) => {
+    setFormData({
+      ...formData,
+      emergencyHelplines: (formData.emergencyHelplines || []).filter((h) => h.id !== id),
+    });
+  };
+
   // CSV Exporters
   const exportAppointmentsCsv = async () => {
     try {
@@ -254,19 +481,49 @@ export default function AdminDashboardPage() {
             className={`dash-nav-item${activeTab === "users" ? " active" : ""}`}
             onClick={() => setActiveTab("users")}
           >
-            👥 User &amp; Role Management
+            👥 Users &amp; Roles
           </button>
           <button
-            className={`dash-nav-item${activeTab === "audit" ? " active" : ""}`}
-            onClick={() => setActiveTab("audit")}
+            className={`dash-nav-item${activeTab === "counsellor" ? " active" : ""}`}
+            onClick={() => setActiveTab("counsellor")}
           >
-            📋 System Audit Logs
+            👩‍🏫 Counsellor &amp; Bio
           </button>
           <button
-            className={`dash-nav-item${activeTab === "export" ? " active" : ""}`}
-            onClick={() => setActiveTab("export")}
+            className={`dash-nav-item${activeTab === "services" ? " active" : ""}`}
+            onClick={() => setActiveTab("services")}
           >
-            📥 Data Exports (CSV)
+            🎯 Services &amp; Fees ({servicesList.length})
+          </button>
+          <button
+            className={`dash-nav-item${activeTab === "gallery" ? " active" : ""}`}
+            onClick={() => setActiveTab("gallery")}
+          >
+            🖼️ Gallery &amp; Media ({galleryList.length})
+          </button>
+          <button
+            className={`dash-nav-item${activeTab === "settings" ? " active" : ""}`}
+            onClick={() => setActiveTab("settings")}
+          >
+            ⚙️ Branding &amp; Footer
+          </button>
+          <button
+            className={`dash-nav-item${activeTab === "booking" ? " active" : ""}`}
+            onClick={() => setActiveTab("booking")}
+          >
+            📅 Booking &amp; Payments
+          </button>
+          <button
+            className={`dash-nav-item${activeTab === "faqs" ? " active" : ""}`}
+            onClick={() => setActiveTab("faqs")}
+          >
+            ❓ FAQs &amp; Helplines
+          </button>
+          <button
+            className={`dash-nav-item${activeTab === "features" ? " active" : ""}`}
+            onClick={() => setActiveTab("features")}
+          >
+            ⚡ Features &amp; Mode
           </button>
           <button
             className={`dash-nav-item${activeTab === "theme" ? " active" : ""}`}
@@ -275,10 +532,16 @@ export default function AdminDashboardPage() {
             🎨 Theme &amp; Colors
           </button>
           <button
-            className={`dash-nav-item${activeTab === "settings" ? " active" : ""}`}
-            onClick={() => setActiveTab("settings")}
+            className={`dash-nav-item${activeTab === "audit" ? " active" : ""}`}
+            onClick={() => setActiveTab("audit")}
           >
-            ⚙️ Site &amp; Footer Settings
+            📋 Audit Logs
+          </button>
+          <button
+            className={`dash-nav-item${activeTab === "export" ? " active" : ""}`}
+            onClick={() => setActiveTab("export")}
+          >
+            📥 Data Exports (CSV)
           </button>
 
           <div className="dash-section-title" style={{ marginTop: "1.5rem" }}>Quick Links</div>
@@ -1033,27 +1296,1117 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                {/* Feature Flags Card (Phase 4 Manual QR Payments) */}
-                <div className="card">
-                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "0.5rem" }}>
-                    💳 Consultation Fees &amp; Manual QR Payments
-                  </h3>
-                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem", lineHeight: 1.5 }}>
-                    Zero third-party payment gateway SDKs or gateway fees. Clients scan the counsellor's official UPI QR code or pay via UPI ID and submit their 12-digit UTR transaction reference number. The counsellor verifies each transaction against their bank statement before confirming appointments.
-                  </p>
-                  <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer", fontSize: "0.92rem", fontWeight: 600 }}>
-                    <input
-                      type="checkbox"
-                      checked={!!formData.paymentsEnabled}
-                      onChange={(e) => setFormData({ ...formData, paymentsEnabled: e.target.checked })}
-                    />
-                    Enable Consultation Fees &amp; Manual QR Payments (Status: {formData.paymentsEnabled ? "🟢 ACTIVE" : "🔴 OFF / DISABLED BY DEFAULT"})
-                  </label>
-                </div>
-
                 <div style={{ display: "flex", gap: "1rem" }}>
                   <button type="submit" className="btn btn-primary btn-lg" disabled={savingSettings}>
-                    {savingSettings ? "Saving Settings..." : "💾 Save All Site Settings"}
+                    {savingSettings ? "Saving Settings..." : "💾 Save Site & Footer Branding"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* TAB: COUNSELLOR BIO & CREDENTIALS */}
+          {activeTab === "counsellor" && (
+            <div>
+              <div className="dash-header">
+                <h1>👩‍🏫 Counsellor Identity &amp; Bio</h1>
+                <p>Edit Principal / Counsellor details, biography, qualifications, badges, and achievements shown on the homepage and about page.</p>
+              </div>
+
+              {saveSuccess && (
+                <div className="alert alert-success" style={{ marginBottom: "1.25rem" }}>
+                  ✓ Counsellor information saved successfully!
+                </div>
+              )}
+
+              <form onSubmit={handleSaveSettings} style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
+                <div className="card">
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "1rem" }}>
+                    Personal Details
+                  </h3>
+                  <div className="grid-2" style={{ gap: "1rem" }}>
+                    <div className="form-group">
+                      <label className="form-label">Full Name</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.counsellorName}
+                        onChange={(e) => setFormData({ ...formData, counsellorName: e.target.value })}
+                        placeholder="e.g. Dr. Ananya Sharma"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Professional Title / Designation</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.counsellorTitle}
+                        onChange={(e) => setFormData({ ...formData, counsellorTitle: e.target.value })}
+                        placeholder="e.g. Senior Career Strategist & Education Consultant"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Professional Registration Number</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.professionalRegNumber || ""}
+                        onChange={(e) => setFormData({ ...formData, professionalRegNumber: e.target.value })}
+                        placeholder="e.g. RCI Registration No. CRR-12345 or NCS ID: NC-67890"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Specializations (comma separated)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.specializations}
+                        onChange={(e) => setFormData({ ...formData, specializations: e.target.value })}
+                        placeholder="Stream Selection, NEET/JEE Counselling, Abroad Studies, Resume Building"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: "1rem" }}>
+                    <ImageUploader
+                      label="Counsellor Profile Photo"
+                      folder="counsellor"
+                      currentUrl={formData.counsellorPhoto}
+                      onUploadComplete={(url: string) => setFormData({ ...formData, counsellorPhoto: url })}
+                      onRemove={() => setFormData({ ...formData, counsellorPhoto: "" })}
+                      helperText="Official counsellor photo. Recommended ratio 3:4 or square. Max 2 MB."
+                      maxSizeMB={2}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: "1rem" }}>
+                    <label className="form-label">About / Biography (Detailed summary)</label>
+                    <textarea
+                      className="form-textarea"
+                      rows={5}
+                      value={formData.counsellorBio}
+                      onChange={(e) => setFormData({ ...formData, counsellorBio: e.target.value })}
+                      placeholder="Write counsellor's guidance philosophy, experience, and mentorship background..."
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: "1rem" }}>
+                    <label className="form-label">Qualifications &amp; Certifications (1 per line)</label>
+                    <textarea
+                      className="form-textarea"
+                      rows={3}
+                      value={formData.qualifications}
+                      onChange={(e) => setFormData({ ...formData, qualifications: e.target.value })}
+                      placeholder="M.A. Applied Psychology, Delhi University&#10;Certified Global Career Counsellor (UCLA Extension)&#10;Member, National Career Development Association"
+                    />
+                  </div>
+                </div>
+
+                {/* Badges and Experience Metrics */}
+                <div className="card">
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "1rem" }}>
+                    📊 Key Metrics &amp; Trust Badges
+                  </h3>
+                  <div className="grid-3" style={{ gap: "1rem" }}>
+                    <div className="form-group">
+                      <label className="form-label">Years of Experience</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.yearsExperience}
+                        onChange={(e) => setFormData({ ...formData, yearsExperience: e.target.value })}
+                        placeholder="12+"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Students Guided</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.studentsGuided}
+                        onChange={(e) => setFormData({ ...formData, studentsGuided: e.target.value })}
+                        placeholder="5,000+"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Success Rate</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.successRate}
+                        onChange={(e) => setFormData({ ...formData, successRate: e.target.value })}
+                        placeholder="98%"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid-3" style={{ gap: "1rem", marginTop: "1rem" }}>
+                    <div className="form-group">
+                      <label className="form-label">Badge 1</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.badge1}
+                        onChange={(e) => setFormData({ ...formData, badge1: e.target.value })}
+                        placeholder="Certified Career Mentor"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Badge 2</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.badge2}
+                        onChange={(e) => setFormData({ ...formData, badge2: e.target.value })}
+                        placeholder="Confidential & 1-on-1"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Badge 3</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.badge3}
+                        onChange={(e) => setFormData({ ...formData, badge3: e.target.value })}
+                        placeholder="Science-Backed Assessments"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <button type="submit" className="btn btn-primary btn-lg" disabled={savingSettings}>
+                    {savingSettings ? "Saving..." : "💾 Save Counsellor Details"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* TAB: SERVICES & PRICING */}
+          {activeTab === "services" && (
+            <div>
+              <div className="dash-header">
+                <h1>🎯 Counselling Services &amp; Consultation Fees</h1>
+                <p>Manage all guidance offerings and session pricing displayed on the public website and in appointment bookings.</p>
+              </div>
+
+              {/* Standard Booking Fee Card */}
+              <form onSubmit={handleSaveSettings} className="card" style={{ marginBottom: "2rem", border: "1.5px solid var(--brand-primary)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
+                  <div>
+                    <h3 style={{ fontSize: "1.15rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "0.35rem" }}>
+                      💰 Standard Consultation Booking Price (₹ INR)
+                    </h3>
+                    <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0, maxWidth: 650, lineHeight: 1.5 }}>
+                      Default booking fee for consultation appointments. When a service doesn't have an individual custom fee, this standard price will apply across the website. (Set 0 for Free).
+                    </p>
+                  </div>
+                  {saveSuccess && (
+                    <span className="badge badge-success" style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }}>
+                      ✓ Booking Price Saved!
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "1.25rem", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text)" }}>₹</span>
+                    <input
+                      type="number"
+                      className="form-input"
+                      min={0}
+                      step={50}
+                      value={formData.defaultConsultationFee !== undefined ? formData.defaultConsultationFee : ""}
+                      onChange={(e) => setFormData({ ...formData, defaultConsultationFee: e.target.value ? Number(e.target.value) : 0 })}
+                      placeholder="e.g. 500"
+                      style={{ width: "160px", fontWeight: 700, fontSize: "1.05rem" }}
+                    />
+                  </div>
+                  <button type="submit" className="btn btn-primary" disabled={savingSettings}>
+                    {savingSettings ? "Saving..." : "💾 Update Standard Booking Price"}
+                  </button>
+                  <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                    Current Active: <strong>{profile.defaultConsultationFee ? `₹${profile.defaultConsultationFee}` : "Free of Cost"}</strong>
+                  </span>
+                </div>
+              </form>
+
+              {/* Add New Service Card */}
+              <form onSubmit={handleAddService} className="card" style={{ marginBottom: "2rem" }}>
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "1rem" }}>
+                  Add New Counselling Service
+                </h3>
+                <div className="grid-2" style={{ gap: "1rem" }}>
+                  <div className="form-group" style={{ maxWidth: 100 }}>
+                    <label className="form-label">Emoji / Icon</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={newService.icon}
+                      onChange={(e) => setNewService({ ...newService, icon: e.target.value })}
+                      placeholder="🎯"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Service Title *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={newService.title}
+                      onChange={(e) => setNewService({ ...newService, title: e.target.value })}
+                      placeholder="e.g. Stream Selection & Subject Mapping"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginTop: "1rem" }}>
+                  <label className="form-label">Consultation Fee (₹ INR) — Optional</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    min={0}
+                    value={newService.fee !== undefined ? newService.fee : ""}
+                    onChange={(e) => setNewService({ ...newService, fee: e.target.value ? Number(e.target.value) : undefined })}
+                    placeholder="e.g. 500 (Leave blank to use Standard Booking Price)"
+                  />
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                    Leave blank to automatically use the standard consultation booking price. Enter 0 for Free.
+                  </span>
+                </div>
+
+                <div className="form-group" style={{ marginTop: "1rem" }}>
+                  <label className="form-label">Description *</label>
+                  <textarea
+                    className="form-textarea"
+                    rows={3}
+                    value={newService.description}
+                    onChange={(e) => setNewService({ ...newService, description: e.target.value })}
+                    placeholder="Provide a clear description of what the student will receive in this consultation..."
+                    required
+                  />
+                </div>
+
+                <div style={{ marginTop: "1rem" }}>
+                  <button type="submit" className="btn btn-primary" disabled={savingServices}>
+                    + Add Service
+                  </button>
+                </div>
+              </form>
+
+              {/* Existing Services List */}
+              <div className="card">
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1rem" }}>
+                  Existing Services ({servicesList.length})
+                </h3>
+                {servicesList.length === 0 ? (
+                  <div className="empty-state">
+                    <p>No services registered yet.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    {servicesList.map((srv) => (
+                      <div
+                        key={srv.id}
+                        style={{
+                          padding: "1.25rem",
+                          borderRadius: "var(--radius-sm)",
+                          background: "var(--surface-2)",
+                          border: "1px solid var(--border)",
+                        }}
+                      >
+                        {editingServiceId === srv.id ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                            <div className="grid-2" style={{ gap: "1rem" }}>
+                              <div className="form-group" style={{ maxWidth: 100 }}>
+                                <label className="form-label">Icon</label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={editServiceForm.icon}
+                                  onChange={(e) => setEditServiceForm({ ...editServiceForm, icon: e.target.value })}
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label className="form-label">Service Title</label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={editServiceForm.title}
+                                  onChange={(e) => setEditServiceForm({ ...editServiceForm, title: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label">Consultation Fee (₹ INR)</label>
+                              <input
+                                type="number"
+                                className="form-input"
+                                min={0}
+                                value={editServiceForm.fee !== undefined ? editServiceForm.fee : ""}
+                                onChange={(e) => setEditServiceForm({ ...editServiceForm, fee: e.target.value ? Number(e.target.value) : undefined })}
+                                placeholder="Leave blank for Standard Price"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label">Description</label>
+                              <textarea
+                                className="form-textarea"
+                                rows={3}
+                                value={editServiceForm.description}
+                                onChange={(e) => setEditServiceForm({ ...editServiceForm, description: e.target.value })}
+                              />
+                            </div>
+                            <div style={{ display: "flex", gap: "0.75rem" }}>
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                onClick={() => handleSaveEditService(srv.id)}
+                                disabled={savingServices}
+                              >
+                                {savingServices ? "Saving..." : "✓ Save Changes"}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => setEditingServiceId(null)}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem" }}>
+                            <div style={{ display: "flex", gap: "1rem" }}>
+                              <span style={{ fontSize: "1.8rem" }}>{srv.icon}</span>
+                              <div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                  <h4 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text)" }}>{srv.title}</h4>
+                                  <span className="badge badge-primary">
+                                    {srv.fee !== undefined && srv.fee !== null
+                                      ? (Number(srv.fee) > 0 ? formatInr(srv.fee) : "Free of Cost")
+                                      : (profile.defaultConsultationFee ? `${formatInr(profile.defaultConsultationFee)} (Standard)` : "Free / Included")}
+                                  </span>
+                                </div>
+                                <p style={{ fontSize: "0.88rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+                                  {srv.description}
+                                </p>
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: "0.5rem" }}>
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                onClick={() => handleStartEditService(srv)}
+                              >
+                                ✏️ Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                onClick={() => handleDeleteService(srv.id)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: GALLERY */}
+          {activeTab === "gallery" && (
+            <div>
+              <div className="dash-header">
+                <h1>🖼️ Gallery &amp; Media Manager</h1>
+                <p>Upload photos and seminar/workshop videos for the public gallery.</p>
+              </div>
+
+              {/* Add Gallery Item Card */}
+              <form onSubmit={handleAddGalleryItem} className="card" style={{ marginBottom: "2rem" }}>
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "1rem" }}>
+                  Add Media to Gallery
+                </h3>
+                <div className="grid-2" style={{ gap: "1rem" }}>
+                  <div className="form-group">
+                    <label className="form-label">Media Type</label>
+                    <select
+                      className="form-select"
+                      value={newGalleryItem.type}
+                      onChange={(e) => setNewGalleryItem({ ...newGalleryItem, type: e.target.value as "photo" | "video" })}
+                    >
+                      <option value="photo">Photo / Image</option>
+                      <option value="video">Video (YouTube / Vimeo / MP4)</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Category</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={newGalleryItem.category}
+                      onChange={(e) => setNewGalleryItem({ ...newGalleryItem, category: e.target.value })}
+                      placeholder="e.g. Seminars, Student Guidance, Campus Events"
+                    />
+                  </div>
+                </div>
+
+                {newGalleryItem.type === "photo" ? (
+                  <div className="form-group" style={{ marginTop: "1rem" }}>
+                    <ImageUploader
+                      label="Upload Gallery Photo *"
+                      folder="gallery"
+                      currentUrl={newGalleryItem.url}
+                      onUploadComplete={(url: string) => setNewGalleryItem({ ...newGalleryItem, url })}
+                      onRemove={() => setNewGalleryItem({ ...newGalleryItem, url: "" })}
+                      helperText="Click to browse or drag & drop a photo from your computer or phone. Max 5 MB, auto-compressed."
+                      maxSizeMB={5}
+                    />
+                  </div>
+                ) : (
+                  <div className="form-group" style={{ marginTop: "1rem" }}>
+                    <label className="form-label">Video Embed or Stream Link (YouTube / Vimeo / MP4) *</label>
+                    <input
+                      type="url"
+                      className="form-input"
+                      value={newGalleryItem.url}
+                      onChange={(e) => setNewGalleryItem({ ...newGalleryItem, url: e.target.value })}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      required
+                    />
+                  </div>
+                )}
+
+                <div className="form-group" style={{ marginTop: "1rem" }}>
+                  <label className="form-label">Caption / Description</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={newGalleryItem.caption}
+                    onChange={(e) => setNewGalleryItem({ ...newGalleryItem, caption: e.target.value })}
+                    placeholder="e.g. Career Guidance Seminar 2026"
+                  />
+                </div>
+
+                <div style={{ marginTop: "1rem" }}>
+                  <button type="submit" className="btn btn-primary" disabled={savingGallery}>
+                    {savingGallery ? "Adding..." : "+ Add to Gallery"}
+                  </button>
+                </div>
+              </form>
+
+              {/* Gallery Items Grid */}
+              <div className="card">
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1rem" }}>
+                  Gallery Items ({galleryList.length})
+                </h3>
+                {galleryList.length === 0 ? (
+                  <div className="empty-state">
+                    <p>No gallery items uploaded yet.</p>
+                  </div>
+                ) : (
+                  <div className="grid-3" style={{ gap: "1.25rem" }}>
+                    {galleryList.map((item) => (
+                      <div
+                        key={item.id}
+                        style={{
+                          borderRadius: "var(--radius-sm)",
+                          background: "var(--surface-2)",
+                          border: "1px solid var(--border)",
+                          overflow: "hidden",
+                          display: "flex",
+                          flexDirection: "column",
+                        }}
+                      >
+                        {item.type === "photo" ? (
+                          <img
+                            src={item.url}
+                            alt={item.caption || "Gallery"}
+                            style={{ width: "100%", height: "180px", objectFit: "cover" }}
+                          />
+                        ) : (
+                          <div style={{ width: "100%", height: "180px", background: "#000", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                            🎥 Video Embed
+                          </div>
+                        )}
+                        <div style={{ padding: "0.85rem", display: "flex", flexDirection: "column", flex: 1, justifyContent: "space-between" }}>
+                          <div>
+                            <span className="badge badge-secondary" style={{ fontSize: "0.72rem", marginBottom: "0.35rem", display: "inline-block" }}>
+                              {item.category}
+                            </span>
+                            <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>{item.caption || "No caption"}</div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            style={{ marginTop: "0.75rem", alignSelf: "flex-end" }}
+                            onClick={() => handleDeleteGalleryItem(item.id)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: BOOKING RULES & PAYMENTS */}
+          {activeTab === "booking" && (
+            <div>
+              <div className="dash-header">
+                <h1>📅 Booking Rules &amp; Payments</h1>
+                <p>Configure appointment durations, cancellation cutoff windows, UPI QR code, payee credentials, and client consent terms.</p>
+              </div>
+
+              {saveSuccess && (
+                <div className="alert alert-success" style={{ marginBottom: "1.25rem" }}>
+                  ✓ Booking and payment settings saved successfully!
+                </div>
+              )}
+
+              <form onSubmit={handleSaveSettings} style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
+                {/* Standard Consultation Fee & Manual QR Payments */}
+                <div className="card">
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "0.5rem" }}>
+                    💳 Consultation Fees &amp; UPI QR Payments
+                  </h3>
+                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.25rem", lineHeight: 1.5 }}>
+                    Zero payment gateway fees. Clients scan the verified UPI QR code, pay via UPI, and submit their 12-digit bank UTR reference number for verification.
+                  </p>
+
+                  <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer", fontSize: "0.92rem", fontWeight: 600 }}>
+                      <input
+                        type="checkbox"
+                        checked={!!formData.paymentsEnabled}
+                        onChange={(e) => setFormData({ ...formData, paymentsEnabled: e.target.checked })}
+                      />
+                      Enable Consultation Fees &amp; Manual QR Payments (Status: {formData.paymentsEnabled ? "🟢 ACTIVE" : "🔴 OFF / DISABLED"})
+                    </label>
+                  </div>
+
+                  <div className="grid-2" style={{ gap: "1.25rem" }}>
+                    <div>
+                      <ImageUploader
+                        label="Official Payment QR Code Image *"
+                        folder="payments/qr"
+                        currentUrl={formData.paymentQr}
+                        onUploadComplete={(url: string) => setFormData({ ...formData, paymentQr: url })}
+                        onRemove={() => setFormData({ ...formData, paymentQr: "" })}
+                        helperText="Upload Google Pay / PhonePe / Paytm / BHIM QR code."
+                        maxSizeMB={2}
+                      />
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                      <div className="form-group">
+                        <label className="form-label">Standard Consultation Booking Fee (₹ INR)</label>
+                        <input
+                          type="number"
+                          className="form-input"
+                          min={0}
+                          value={formData.defaultConsultationFee !== undefined ? formData.defaultConsultationFee : ""}
+                          onChange={(e) => setFormData({ ...formData, defaultConsultationFee: e.target.value ? Number(e.target.value) : 0 })}
+                          placeholder="e.g. 500 (0 for Free)"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">UPI ID (VPA) *</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={formData.upiId || ""}
+                          onChange={(e) => setFormData({ ...formData, upiId: e.target.value })}
+                          placeholder="e.g. counsellor@oksbi or 9876543210@paytm"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Payee Name (Account Holder Name) *</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={formData.payeeName || ""}
+                          onChange={(e) => setFormData({ ...formData, payeeName: e.target.value })}
+                          placeholder="e.g. Dr. Ananya Sharma / Inspiria Careers"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: "1.25rem" }}>
+                    <label className="form-label">Refund &amp; Cancellation Policy Note (Visible to Clients)</label>
+                    <textarea
+                      className="form-textarea"
+                      rows={3}
+                      value={formData.refundPolicyText || ""}
+                      onChange={(e) => setFormData({ ...formData, refundPolicyText: e.target.value })}
+                      placeholder="e.g. 100% refund if cancelled at least 24 hours prior to appointment slot..."
+                    />
+                  </div>
+                </div>
+
+                {/* Scheduling Parameters */}
+                <div className="card">
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "1rem" }}>
+                    ⏱️ Session Duration &amp; Cancellation Windows
+                  </h3>
+                  <div className="grid-3" style={{ gap: "1rem" }}>
+                    <div className="form-group">
+                      <label className="form-label">Cancellation Cutoff Hours</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        min={1}
+                        value={formData.cancellationCutoffHours}
+                        onChange={(e) => setFormData({ ...formData, cancellationCutoffHours: Number(e.target.value) || 24 })}
+                        placeholder="24"
+                      />
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                        Clients cannot cancel or reschedule after this cutoff.
+                      </span>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Slot Duration (Minutes)</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        min={15}
+                        step={15}
+                        value={formData.slotDurationMinutes || 45}
+                        onChange={(e) => setFormData({ ...formData, slotDurationMinutes: Number(e.target.value) || 45 })}
+                        placeholder="45"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Buffer Between Slots (Minutes)</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        min={0}
+                        step={5}
+                        value={formData.slotBufferMinutes || 15}
+                        onChange={(e) => setFormData({ ...formData, slotBufferMinutes: Number(e.target.value) || 15 })}
+                        placeholder="15"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Informed Consent Terms */}
+                <div className="card">
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "0.5rem" }}>
+                    📜 Client Informed Consent Form
+                  </h3>
+                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem", lineHeight: 1.5 }}>
+                    Mandatory consent text that clients must agree to during their clinical intake or first appointment booking.
+                  </p>
+                  <div className="form-group">
+                    <label className="form-label">Consent Version</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      style={{ width: "120px" }}
+                      min={1}
+                      value={formData.consentVersion || 1}
+                      onChange={(e) => setFormData({ ...formData, consentVersion: Number(e.target.value) || 1 })}
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginTop: "1rem" }}>
+                    <label className="form-label">Consent Agreement Text</label>
+                    <textarea
+                      className="form-textarea"
+                      rows={4}
+                      value={formData.consentText || ""}
+                      onChange={(e) => setFormData({ ...formData, consentText: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <button type="submit" className="btn btn-primary btn-lg" disabled={savingSettings}>
+                    {savingSettings ? "Saving..." : "💾 Save Booking & Payment Rules"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* TAB: FAQS & HELPLINES */}
+          {activeTab === "faqs" && (
+            <div>
+              <div className="dash-header">
+                <h1>❓ FAQs &amp; Emergency Directory</h1>
+                <p>Manage bilingual frequently asked questions and official 24x7 crisis helplines.</p>
+              </div>
+
+              {saveSuccess && (
+                <div className="alert alert-success" style={{ marginBottom: "1.25rem" }}>
+                  ✓ FAQs and Helplines saved successfully!
+                </div>
+              )}
+
+              <form onSubmit={handleSaveSettings} style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
+                {/* FAQs Section */}
+                <div className="card">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                    <div>
+                      <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", margin: 0 }}>
+                        Frequently Asked Questions ({(formData.faqList || []).length})
+                      </h3>
+                      <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0.25rem 0 0" }}>
+                        Bilingual Q&amp;A shown on the FAQs page and booking modal.
+                      </p>
+                    </div>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddFaq}>
+                      + Add New FAQ
+                    </button>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                    {(formData.faqList || []).map((faq, idx) => (
+                      <div
+                        key={faq.id}
+                        style={{
+                          padding: "1rem",
+                          borderRadius: "var(--radius-sm)",
+                          background: "var(--surface-2)",
+                          border: "1px solid var(--border)",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                          <span className="badge badge-primary">FAQ #{idx + 1}</span>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDeleteFaq(faq.id)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div className="grid-2" style={{ gap: "1rem", marginBottom: "0.75rem" }}>
+                          <div className="form-group">
+                            <label className="form-label">Question (English)</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={faq.questionEn}
+                              onChange={(e) => {
+                                const list = [...(formData.faqList || [])];
+                                list[idx] = { ...list[idx], questionEn: e.target.value };
+                                setFormData({ ...formData, faqList: list });
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Question (Hindi / हिन्दी)</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={faq.questionHi}
+                              onChange={(e) => {
+                                const list = [...(formData.faqList || [])];
+                                list[idx] = { ...list[idx], questionHi: e.target.value };
+                                setFormData({ ...formData, faqList: list });
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid-2" style={{ gap: "1rem" }}>
+                          <div className="form-group">
+                            <label className="form-label">Answer (English)</label>
+                            <textarea
+                              className="form-textarea"
+                              rows={2}
+                              value={faq.answerEn}
+                              onChange={(e) => {
+                                const list = [...(formData.faqList || [])];
+                                list[idx] = { ...list[idx], answerEn: e.target.value };
+                                setFormData({ ...formData, faqList: list });
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Answer (Hindi / हिन्दी)</label>
+                            <textarea
+                              className="form-textarea"
+                              rows={2}
+                              value={faq.answerHi}
+                              onChange={(e) => {
+                                const list = [...(formData.faqList || [])];
+                                list[idx] = { ...list[idx], answerHi: e.target.value };
+                                setFormData({ ...formData, faqList: list });
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Emergency Helplines Section */}
+                <div className="card">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                    <div>
+                      <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", margin: 0 }}>
+                        Emergency Helplines ({(formData.emergencyHelplines || []).length})
+                      </h3>
+                      <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0.25rem 0 0" }}>
+                        Displayed on the /emergency page and trust &amp; safety disclaimers.
+                      </p>
+                    </div>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddHelpline}>
+                      + Add Helpline
+                    </button>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                    {(formData.emergencyHelplines || []).map((help, idx) => (
+                      <div
+                        key={help.id}
+                        style={{
+                          padding: "1rem",
+                          borderRadius: "var(--radius-sm)",
+                          background: "var(--surface-2)",
+                          border: "1px solid var(--border)",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                          <span className="badge badge-secondary">Helpline #{idx + 1}</span>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDeleteHelpline(help.id)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div className="grid-3" style={{ gap: "1rem", marginBottom: "0.75rem" }}>
+                          <div className="form-group">
+                            <label className="form-label">Organization / Helpline Name</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={help.name}
+                              onChange={(e) => {
+                                const list = [...(formData.emergencyHelplines || [])];
+                                list[idx] = { ...list[idx], name: e.target.value };
+                                setFormData({ ...formData, emergencyHelplines: list });
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Phone / Toll-Free Number</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={help.number}
+                              onChange={(e) => {
+                                const list = [...(formData.emergencyHelplines || [])];
+                                list[idx] = { ...list[idx], number: e.target.value };
+                                setFormData({ ...formData, emergencyHelplines: list });
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Availability Hours</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={help.available}
+                              onChange={(e) => {
+                                const list = [...(formData.emergencyHelplines || [])];
+                                list[idx] = { ...list[idx], available: e.target.value };
+                                setFormData({ ...formData, emergencyHelplines: list });
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid-2" style={{ gap: "1rem" }}>
+                          <div className="form-group">
+                            <label className="form-label">Description (English)</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={help.descEn}
+                              onChange={(e) => {
+                                const list = [...(formData.emergencyHelplines || [])];
+                                list[idx] = { ...list[idx], descEn: e.target.value };
+                                setFormData({ ...formData, emergencyHelplines: list });
+                              }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Description (Hindi)</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={help.descHi}
+                              onChange={(e) => {
+                                const list = [...(formData.emergencyHelplines || [])];
+                                list[idx] = { ...list[idx], descHi: e.target.value };
+                                setFormData({ ...formData, emergencyHelplines: list });
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <button type="submit" className="btn btn-primary btn-lg" disabled={savingSettings}>
+                    {savingSettings ? "Saving..." : "💾 Save FAQs & Helplines"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* TAB: FEATURE FLAGS & MAINTENANCE MODE */}
+          {activeTab === "features" && (
+            <div>
+              <div className="dash-header">
+                <h1>⚡ Feature Flags &amp; Maintenance Mode</h1>
+                <p>Toggle optional modules and manage system maintenance state.</p>
+              </div>
+
+              {saveSuccess && (
+                <div className="alert alert-success" style={{ marginBottom: "1.25rem" }}>
+                  ✓ Feature settings saved successfully!
+                </div>
+              )}
+
+              <form onSubmit={handleSaveSettings} style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
+                {/* Maintenance Mode */}
+                <div className="card" style={{ border: "1.5px solid #d97706" }}>
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#d97706", marginBottom: "0.5rem" }}>
+                    🚧 Scheduled Maintenance Mode
+                  </h3>
+                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem", lineHeight: 1.5 }}>
+                    When active, public appointment booking is temporarily paused with an emergency safety notice banner. Administrators and Counsellors retain full dashboard access.
+                  </p>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer", fontWeight: 700, fontSize: "0.95rem" }}>
+                    <input
+                      type="checkbox"
+                      checked={!!formData.maintenanceMode}
+                      onChange={(e) => setFormData({ ...formData, maintenanceMode: e.target.checked })}
+                    />
+                    Enable Maintenance Mode (Status: {formData.maintenanceMode ? "🟡 ACTIVE (Bookings Paused)" : "🟢 INACTIVE (Normal Operations)"})
+                  </label>
+                  {formData.maintenanceMode && (
+                    <div className="form-group" style={{ marginTop: "1rem" }}>
+                      <label className="form-label">Maintenance Notice Banner Text</label>
+                      <textarea
+                        className="form-textarea"
+                        rows={2}
+                        value={formData.maintenanceNoticeText || ""}
+                        onChange={(e) => setFormData({ ...formData, maintenanceNoticeText: e.target.value })}
+                        placeholder="We are currently performing scheduled maintenance..."
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Modular Add-on Flags */}
+                <div className="card">
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "1rem" }}>
+                    🧩 Modular System Add-ons
+                  </h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                    {/* Messaging */}
+                    <div style={{ borderBottom: "1px solid var(--border)", paddingBottom: "1rem" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: 600, cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={!!formData.messagingEnabled}
+                          onChange={(e) => setFormData({ ...formData, messagingEnabled: e.target.checked })}
+                        />
+                        💬 Secure Async Client-Counsellor Messaging
+                      </label>
+                      <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.25rem 0 0.5rem 1.7rem" }}>
+                        Enables private asynchronous messaging threads between verified clients and the counsellor.
+                      </p>
+                      {formData.messagingEnabled && (
+                        <div style={{ marginLeft: "1.7rem", marginTop: "0.5rem", maxWidth: 400 }}>
+                          <label className="form-label" style={{ fontSize: "0.8rem" }}>
+                            Counsellor Expected Response Time Notice
+                          </label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={formData.messagingResponseTimeText || ""}
+                            onChange={(e) => setFormData({ ...formData, messagingResponseTimeText: e.target.value })}
+                            placeholder="1-2 working days / 24 घंटे"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Reminders */}
+                    <div style={{ borderBottom: "1px solid var(--border)", paddingBottom: "1rem" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: 600, cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={!!formData.smsRemindersEnabled}
+                          onChange={(e) => setFormData({ ...formData, smsRemindersEnabled: e.target.checked })}
+                        />
+                        📱 WhatsApp / SMS Appointment Reminders (Dry-Run / Live)
+                      </label>
+                      <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.25rem 0 0 1.7rem" }}>
+                        Sends transactional appointment logistics 24 hours prior to scheduled session.
+                      </p>
+                    </div>
+
+                    {/* Session Feedback */}
+                    <div style={{ borderBottom: "1px solid var(--border)", paddingBottom: "1rem" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: 600, cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={!!formData.feedbackEnabled}
+                          onChange={(e) => setFormData({ ...formData, feedbackEnabled: e.target.checked })}
+                        />
+                        📝 Private Clinical Session Feedback &amp; Follow-up
+                      </label>
+                      <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.25rem 0 0 1.7rem" }}>
+                        Enables private session outcome reflection questions visible strictly to counsellor.
+                      </p>
+                    </div>
+
+                    {/* Newsletter */}
+                    <div>
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: 600, cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={!!formData.newsletterEnabled}
+                          onChange={(e) => setFormData({ ...formData, newsletterEnabled: e.target.checked })}
+                        />
+                        📰 Newsletter &amp; Educational Guidance Tips
+                      </label>
+                      <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "0.25rem 0 0 1.7rem" }}>
+                        Enables double opt-in guidance newsletter subscription bar in footer and articles.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <button type="submit" className="btn btn-primary btn-lg" disabled={savingSettings}>
+                    {savingSettings ? "Saving..." : "💾 Save Feature Settings"}
                   </button>
                 </div>
               </form>

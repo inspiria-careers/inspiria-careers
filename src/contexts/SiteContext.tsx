@@ -72,6 +72,7 @@ export interface SiteProfile {
 
   // Manual QR & UPI Payments Settings (Phase 4)
   paymentsEnabled: boolean;
+  defaultConsultationFee?: number; // Standard consultation booking fee in INR (e.g. 500)
   paymentQr?: string;             // QR code image URL / base64
   upiId?: string;                 // e.g. counsellor@oksbi
   payeeName?: string;             // e.g. Dr. Ananya Sharma
@@ -172,6 +173,7 @@ export const EMPTY_PROFILE: SiteProfile = {
   cancellationCutoffHours: 24,
   blockedDates: [],
   paymentsEnabled: false,
+  defaultConsultationFee: 0,
   paymentQr: "",
   upiId: "",
   payeeName: "",

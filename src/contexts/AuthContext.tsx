@@ -19,6 +19,7 @@ export interface AppUser {
   uid: string;
   email: string | null;
   displayName: string | null;
+  phone?: string | null;
   photoURL?: string | null;
   role: UserRole;
   disabled?: boolean;
@@ -33,6 +34,7 @@ interface AuthContextType {
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -64,6 +66,7 @@ async function ensureUserDoc(
     uid: u.uid,
     email: data.email ?? u.email,
     displayName: data.displayName ?? u.displayName,
+    phone: data.phone ?? null,
     photoURL: data.photoURL ?? u.photoURL,
     role: (data.role as UserRole) ?? "client",
     disabled: data.disabled ?? false,
@@ -84,6 +87,7 @@ async function fetchAppUser(u: User): Promise<AppUser | null> {
         uid: u.uid,
         email: d.email ?? u.email,
         displayName: d.displayName ?? u.displayName,
+        phone: d.phone ?? null,
         photoURL: d.photoURL ?? u.photoURL,
         role: (d.role as UserRole) ?? "client",
         disabled: false,
@@ -94,6 +98,7 @@ async function fetchAppUser(u: User): Promise<AppUser | null> {
     uid: u.uid,
     email: u.email,
     displayName: u.displayName,
+    phone: null,
     photoURL: u.photoURL,
     role: "client",
     disabled: false,
@@ -172,9 +177,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await sendPasswordResetEmail(auth, email.trim());
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    if (auth.currentUser) {
+      try {
+        const appUser = await fetchAppUser(auth.currentUser);
+        if (appUser) {
+          setUser(appUser);
+          setRole(appUser.role);
+        }
+      } catch (err) {
+        console.error("Error refreshing user:", err);
+      }
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ user, role, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, logout, sendPasswordReset }}
+      value={{ user, role, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, logout, sendPasswordReset, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

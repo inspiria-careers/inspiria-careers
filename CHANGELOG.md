@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Phase 7.1.0] - 2026-10-18
+
+### Added & Enhanced
+- **Admin Full Website Content Control**:
+  - Expanded `/dashboard/admin` with full control over all website content: Counsellor Identity & Bio (name, title, photo, qualifications, bio, badges, metrics), Services & Pricing, Gallery images/videos, Site Branding & Footer customization, Booking rules & UPI/QR payment details, Dynamic bilingual FAQs & 24x7 Emergency Helplines, Feature Flags & Maintenance mode, Theme Presets, Audit logs, and CSV exports.
+- **Dynamic Consultation Booking Fee Control**:
+  - Added `defaultConsultationFee` to `siteContent/settings` (SiteProfile) editable directly by Counsellor / Principal Ma'am in `/dashboard/counsellor` and by Admin in `/dashboard/admin`.
+  - Added inline edit controls for individual service fees and descriptions in both Counsellor and Admin dashboards.
+  - Enhanced `/book` booking flow: services without an explicit fee automatically fall back to the counsellor's default consultation fee, with live fee display badge ("₹X" or "Free / निःशुल्क").
+- **Client Profile & Details Self-Service Editing**:
+  - Expanded `/dashboard/client` Profile tab allowing registered clients/users to edit their Full Name (`displayName`), Phone Number (`phone`), and Profile Photo / Avatar with direct device upload via `ImageUploader`.
+  - Added `refreshUser` hook to `AuthContext` to immediately synchronize updated profile data throughout the application without page reload.
+
 ## [Phase 7.0.0] - 2026-10-18
 
 ### Fixed & Stabilized (Part A: Feedback Fixes)

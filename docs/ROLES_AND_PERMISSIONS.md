@@ -19,7 +19,7 @@ This document details the exact permissions across the three system roles: **Adm
 | View All Registered Users | ✅ | ❌ | ❌ | ❌ |
 | Change User Roles (Admin / Counsellor / Client) | ✅ | ❌ | ❌ | ❌ |
 | Trigger Password Reset for Users | ✅ | ❌ | ❌ | ❌ |
-| Update Own Profile (Name, Avatar) | ✅ | ✅ | ✅ | ❌ |
+| Update Own Profile (Name, Phone, Avatar) | ✅ | ✅ | ✅ | ❌ |
 | Delete Own Account & Export Personal Data | ✅ | ✅ | ✅ | ❌ |
 | **Blog / Guidance Posts** | | | | |
 | View Published Posts (`/posts`, `/posts/[slug]`) | ✅ | ✅ | ✅ | ✅ |
@@ -47,7 +47,7 @@ This document details the exact permissions across the three system roles: **Adm
 | View / Manage Received Messages | ✅ | ✅ | ❌ | ❌ |
 | **Payments & Financial Verification** | | | | |
 | Upload / Update Counsellor Payment QR & UPI ID | ✅ | ✅ | ❌ | ❌ |
-| Set Consultation Fees per Service (INR) | ✅ | ✅ | ❌ | ❌ |
+| Set Consultation Fees per Service & Default Fee (INR) | ✅ | ✅ | ❌ | ❌ |
 | Submit Payment UTR Reference & Proof Screenshot | ❌ | ❌ | ✅ (Own Only) | ❌ |
 | Verify Payment Credit & Confirm Session | ✅ | ✅ | ❌ | ❌ |
 | Reject Payment with Mandatory Reason | ✅ | ✅ | ❌ | ❌ |

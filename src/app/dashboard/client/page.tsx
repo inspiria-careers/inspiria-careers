@@ -85,7 +85,7 @@ interface ClientDoc {
 
 export default function ClientDashboardPage() {
   const router = useRouter();
-  const { user, loading: authLoading, logout } = useAuth();
+  const { user, loading: authLoading, logout, refreshUser } = useAuth();
   const { profile, lang } = useSite();
 
   const [activeTab, setActiveTab] = useState<
@@ -220,9 +220,18 @@ export default function ClientDashboardPage() {
 
   // Profile edit state
   const [displayName, setDisplayName] = useState(user?.displayName || "");
+  const [clientPhone, setClientPhone] = useState(user?.phone || "");
   const [photoURL, setPhotoURL] = useState(user?.photoURL || "");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.displayName || "");
+      setPhotoURL(user.photoURL || "");
+      setClientPhone(user.phone || "");
+    }
+  }, [user]);
 
   // Review submission state
   const [rating, setRating] = useState(5);
@@ -780,14 +789,22 @@ export default function ClientDashboardPage() {
         });
       }
 
-      await updateDoc(doc(db, "users", user.uid), {
-        displayName: displayName.trim(),
-        photoURL: photoURL.trim() || null,
-      });
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          displayName: displayName.trim(),
+          phone: clientPhone.trim() || null,
+          photoURL: photoURL.trim() || null,
+        },
+        { merge: true }
+      );
+
+      await refreshUser();
 
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 3000);
-    } catch {
+    } catch (err) {
+      console.error("Error saving profile:", err);
       alert("Failed to update profile.");
     } finally {
       setSavingProfile(false);
@@ -2083,19 +2100,35 @@ export default function ClientDashboardPage() {
               <form onSubmit={handleSaveProfile} className="card" style={{ maxWidth: "560px" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
                   <div className="form-group">
-                    <label className="form-label">Full Name</label>
+                    <label className="form-label">{lang === "hi" ? "पूरा नाम *" : "Full Name *"}</label>
                     <input
                       type="text"
                       className="form-input"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="Your full name"
+                      placeholder={lang === "hi" ? "आपका पूरा नाम" : "Your full name"}
                       required
                     />
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Email Address (Read-only)</label>
+                    <label className="form-label">{lang === "hi" ? "फोन नंबर (परामर्श व सूचना हेतु)" : "Phone Number (For guidance & notifications)"}</label>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      value={clientPhone}
+                      onChange={(e) => setClientPhone(e.target.value)}
+                      placeholder="+91 9876543210"
+                    />
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                      {lang === "hi"
+                        ? "अपॉइंटमेंट बुकिंग व सूचनाओं के लिए उपयोग किया जाता है।"
+                        : "Used for appointment booking autofill and session updates."}
+                    </span>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">{lang === "hi" ? "ईमेल पता (केवल पढ़ने योग्य)" : "Email Address (Read-only)"}</label>
                     <input
                       type="email"
                       className="form-input"
@@ -2106,31 +2139,21 @@ export default function ClientDashboardPage() {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Avatar / Photo URL</label>
-                    <input
-                      type="url"
-                      className="form-input"
-                      value={photoURL}
-                      onChange={(e) => setPhotoURL(e.target.value)}
-                      placeholder="https://example.com/avatar.jpg"
+                    <ImageUploader
+                      label={lang === "hi" ? "प्रोफ़ाइल फ़ोटो / अवतार" : "Profile Photo / Avatar"}
+                      folder="avatars"
+                      currentUrl={photoURL}
+                      onUploadComplete={(url: string) => setPhotoURL(url)}
+                      onRemove={() => setPhotoURL("")}
+                      helperText={lang === "hi" ? "अपने फोन या कंप्यूटर से फोटो अपलोड करें (अधिकतम 2 MB)" : "Upload from your computer or phone. Max 2 MB, auto-compressed."}
+                      maxSizeMB={2}
                     />
                   </div>
 
-                  {photoURL && (
-                    <div>
-                      <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "0.4rem" }}>
-                        Preview:
-                      </span>
-                      <img
-                        src={photoURL}
-                        alt="Avatar preview"
-                        style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--border)" }}
-                      />
-                    </div>
-                  )}
-
                   <button type="submit" className="btn btn-primary" disabled={savingProfile}>
-                    {savingProfile ? "Saving..." : "Save Profile"}
+                    {savingProfile
+                      ? (lang === "hi" ? "सहेजा जा रहा है..." : "Saving...")
+                      : (lang === "hi" ? "💾 प्रोफ़ाइल अपडेट करें" : "💾 Save Profile Changes")}
                   </button>
                 </div>
               </form>

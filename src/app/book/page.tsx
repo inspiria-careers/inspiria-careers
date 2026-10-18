@@ -138,7 +138,11 @@ export default function BookAppointmentPage() {
 
   const executeBooking = async () => {
     const selectedService = services.find((s) => s.id === serviceId);
-    const feeNum = selectedService?.fee ? Number(selectedService.fee) : 0;
+    const feeNum = (selectedService?.fee !== undefined && selectedService?.fee !== null && Number(selectedService.fee) > 0)
+      ? Number(selectedService.fee)
+      : (profile.defaultConsultationFee !== undefined && Number(profile.defaultConsultationFee) > 0
+          ? Number(profile.defaultConsultationFee)
+          : 0);
     const requiresPayment = feeNum > 0;
 
     setStatus("submitting");
@@ -404,18 +408,40 @@ export default function BookAppointmentPage() {
                       onChange={(e) => setServiceId(e.target.value)}
                     >
                       {services.length > 0 ? (
-                        services.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.title}
-                            {s.fee && Number(s.fee) > 0 ? ` (₹${s.fee})` : (lang === "hi" ? " (निःशुल्क)" : " (Free)")}
-                          </option>
-                        ))
+                        services.map((s) => {
+                          const sFee = (s.fee !== undefined && s.fee !== null && Number(s.fee) > 0)
+                            ? Number(s.fee)
+                            : (profile.defaultConsultationFee !== undefined && Number(profile.defaultConsultationFee) > 0
+                                ? Number(profile.defaultConsultationFee)
+                                : 0);
+                          return (
+                            <option key={s.id} value={s.id}>
+                              {s.title}
+                              {sFee > 0 ? ` (₹${sFee})` : (lang === "hi" ? " (निःशुल्क)" : " (Free)")}
+                            </option>
+                          );
+                        })
                       ) : (
                         <option value="">
                           {lang === "hi" ? "सामान्य करियर परामर्श" : "General Career Counselling"}
+                          {profile.defaultConsultationFee && Number(profile.defaultConsultationFee) > 0 ? ` (₹${profile.defaultConsultationFee})` : ""}
                         </option>
                       )}
                     </select>
+                    {(() => {
+                      const selectedService = services.find((s) => s.id === serviceId);
+                      const currentFee = (selectedService?.fee !== undefined && selectedService?.fee !== null && Number(selectedService.fee) > 0)
+                        ? Number(selectedService.fee)
+                        : (profile.defaultConsultationFee !== undefined && Number(profile.defaultConsultationFee) > 0
+                            ? Number(profile.defaultConsultationFee)
+                            : 0);
+                      return (
+                        <div style={{ marginTop: "0.45rem", fontSize: "0.82rem", color: currentFee > 0 ? "var(--brand-primary)" : "#10b981", fontWeight: 600 }}>
+                          💳 {lang === "hi" ? "परामर्श शुल्क:" : "Consultation Booking Fee:"}{" "}
+                          {currentFee > 0 ? `₹${currentFee}` : (lang === "hi" ? "निःशुल्क (Free)" : "Free of Cost")}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
