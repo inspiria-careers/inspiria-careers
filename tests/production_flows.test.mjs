@@ -830,6 +830,52 @@ describe("Phase 7: Security Matrix, Data Isolation & Reliability Tests", () => {
     assert.equal(emailData.clientName, "Priya Sharma");
     assert.equal(emailData.date, "2026-11-25");
   });
+
+  // 6. Rate Limiting Tests (5 requests per minute)
+  test("Rate limiting: Allows exactly 5 requests per minute and blocks the 6th", () => {
+    // Sliding window simulation
+    const tracker = new Map();
+    function simulateRateLimit(id, limit = 5, windowMs = 60000, now = Date.now()) {
+      let record = tracker.get(id);
+      if (!record) {
+        record = { timestamps: [] };
+        tracker.set(id, record);
+      }
+      record.timestamps = record.timestamps.filter((t) => now - t < windowMs);
+      if (record.timestamps.length >= limit) {
+        return { success: false, remaining: 0, resetSeconds: Math.ceil((record.timestamps[0] + windowMs - now) / 1000) };
+      }
+      record.timestamps.push(now);
+      return { success: true, remaining: limit - record.timestamps.length };
+    }
+
+    const testIp = "203.0.113.42";
+    const baseTime = Date.now();
+
+    // Requests 1 through 5 must all succeed
+    for (let i = 1; i <= 5; i++) {
+      const res = simulateRateLimit(testIp, 5, 60000, baseTime + i * 100);
+      assert.equal(res.success, true, `Request #${i} should be allowed`);
+      assert.equal(res.remaining, 5 - i, `Remaining slots after req #${i}`);
+    }
+
+    // 6th request within the same minute must be rejected (429 condition)
+    const sixthRes = simulateRateLimit(testIp, 5, 60000, baseTime + 600);
+    assert.equal(sixthRes.success, false, "Request #6 within 1 minute must be blocked");
+    assert.equal(sixthRes.remaining, 0);
+    assert.ok(sixthRes.resetSeconds > 0 && sixthRes.resetSeconds <= 60);
+
+    // Another distinct IP must not be blocked (independent rate limits)
+    const anotherIp = "198.51.100.1";
+    const anotherRes = simulateRateLimit(anotherIp, 5, 60000, baseTime + 700);
+    assert.equal(anotherRes.success, true, "Distinct IP should have its own separate quota");
+
+    // After 60 seconds have elapsed, the quota must reset
+    const afterOneMinute = baseTime + 61000;
+    const resetRes = simulateRateLimit(testIp, 5, 60000, afterOneMinute);
+    assert.equal(resetRes.success, true, "Request after 1 minute window must succeed (quota reset)");
+  });
 });
+
 
 

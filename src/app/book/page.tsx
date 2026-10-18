@@ -20,6 +20,7 @@ import { getAvailableSlotsForDate } from "@/lib/slotUtils";
 import IntakeModal from "@/components/IntakeModal";
 import type { ClientIntake } from "@/types";
 import { CalendarIcon, CreditCardIcon, LockIcon, CertificateIcon } from "@/components/Icons";
+import { checkClientRateLimit } from "@/lib/clientRateLimit";
 
 export default function BookAppointmentPage() {
   const { user } = useAuth();
@@ -281,6 +282,17 @@ export default function BookAppointmentPage() {
     // Honeypot bot protection
     if (hp) {
       setStatus("success");
+      return;
+    }
+
+    // Rate Limit: Maximum 5 requests per minute
+    const rl = checkClientRateLimit("booking", 5, 60000);
+    if (!rl.allowed) {
+      setErrorMsg(
+        lang === "hi"
+          ? `अनुरोध सीमा: आप प्रति मिनट अधिकतम 5 बार बुकिंग का प्रयास कर सकते हैं। कृपया ${rl.retryAfterSec} सेकंड बाद पुनः प्रयास करें।`
+          : `Rate limit reached: Maximum 5 booking attempts allowed per minute. Please wait ${rl.retryAfterSec} seconds.`
+      );
       return;
     }
 
