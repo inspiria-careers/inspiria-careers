@@ -142,7 +142,12 @@ export default function IntakeModal({
         updatedAt: now,
       };
 
-      await setDoc(doc(db, "clientIntake", user.uid), intakePayload, { merge: true });
+      // Strip any undefined fields to guarantee Firestore compatibility
+      const cleanPayload = Object.fromEntries(
+        Object.entries(intakePayload).filter(([_, v]) => v !== undefined)
+      );
+
+      await setDoc(doc(db, "clientIntake", user.uid), cleanPayload, { merge: true });
       setSuccessMsg(t("intakeSubmitted", lang));
       setTimeout(() => {
         if (onSuccess) onSuccess();
