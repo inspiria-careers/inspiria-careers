@@ -20,7 +20,11 @@ export default function GalleryPage() {
           <div className="container">
             <div className="section-tag">{t("gallery", lang)}</div>
             <h1 className="section-title" style={{ textAlign: "left", marginTop: ".5rem" }}>
-              {lang === "hi" ? "मीडिया & <span>कार्यक्रम</span>" : "Media & <span>Events</span>"}
+              {lang === "hi" ? (
+                <>मीडिया &amp; <span>कार्यक्रम</span></>
+              ) : (
+                <>Media &amp; <span>Events</span></>
+              )}
             </h1>
           </div>
         </section>

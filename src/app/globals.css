@@ -392,3 +392,76 @@ button { font-family: inherit; cursor: pointer; }
   }
 }
 
+/* ── Reviews Page & Spotlight Showcase ── */
+.review-spotlight {
+  position: relative;
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2.25rem 2rem;
+  margin-bottom: 3rem;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.review-spotlight:hover {
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-lg);
+}
+
+.review-flash-card {
+  animation: reviewFlash 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes reviewFlash {
+  0% {
+    opacity: 0.25;
+    transform: translateY(6px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.review-avatar {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #ffffff;
+  user-select: none;
+  border: 2px solid var(--bg-white);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.review-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3.5px;
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
+  transition: width 0.1s linear;
+}
+
+.review-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.25s ease;
+}
+
+.review-dot.active {
+  background: var(--brand-primary);
+  width: 26px;
+  border-radius: 6px;
+}
+

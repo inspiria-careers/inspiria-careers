@@ -827,6 +827,7 @@ export default function ClientDashboardPage() {
         userId: user?.uid || null,
         clientName: displayName || user?.displayName || "Student",
         displayNameChoice,
+        clientPhoto: displayNameChoice !== "anonymous" ? (photoURL || user?.photoURL || null) : null,
         rating,
         comment: reviewComment.trim(),
         approved: false, // Counsellor/admin moderates

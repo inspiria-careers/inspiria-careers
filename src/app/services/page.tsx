@@ -15,7 +15,11 @@ export default function ServicesPage() {
           <div className="container">
             <div className="section-tag">{lang === "hi" ? "हमारी सेवाएं" : "Our Services"}</div>
             <h1 className="section-title" style={{ textAlign: "left", marginTop: ".5rem" }}>
-              {lang === "hi" ? "परामर्श <span>सेवाएं</span>" : "Counselling <span>Services</span>"}
+              {lang === "hi" ? (
+                <>परामर्श <span>सेवाएं</span></>
+              ) : (
+                <>Counselling <span>Services</span></>
+              )}
             </h1>
             <p className="section-subtitle" style={{ textAlign: "left", margin: 0 }}>
               {lang === "hi"

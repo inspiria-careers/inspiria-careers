@@ -105,7 +105,11 @@ export default function AboutPage() {
               <div className="section-header">
                 <div className="section-tag">{lang === "hi" ? "विशेषज्ञता" : "Specializations"}</div>
                 <h2 className="section-title" id="spec-heading">
-                  {lang === "hi" ? "परामर्श <span>क्षेत्र</span>" : "Areas of <span>Expertise</span>"}
+                  {lang === "hi" ? (
+                    <>परामर्श <span>क्षेत्र</span></>
+                  ) : (
+                    <>Areas of <span>Expertise</span></>
+                  )}
                 </h2>
               </div>
               <div style={{ display: "flex", gap: ".75rem", flexWrap: "wrap", justifyContent: "center" }}>
@@ -124,7 +128,11 @@ export default function AboutPage() {
               <div className="section-header">
                 <div className="section-tag">{lang === "hi" ? "योग्यताएं" : "Credentials"}</div>
                 <h2 className="section-title" id="qual-heading">
-                  {lang === "hi" ? "शिक्षा & <span>प्रमाणपत्र</span>" : "Education & <span>Certifications</span>"}
+                  {lang === "hi" ? (
+                    <>शिक्षा &amp; <span>प्रमाणपत्र</span></>
+                  ) : (
+                    <>Education &amp; <span>Certifications</span></>
+                  )}
                 </h2>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>

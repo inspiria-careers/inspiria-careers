@@ -96,6 +96,7 @@ interface ReviewDoc {
   id: string;
   userId?: string | null;
   clientName: string;
+  clientPhoto?: string | null;
   displayNameChoice?: "full" | "first_only" | "anonymous";
   rating: number;
   comment: string;

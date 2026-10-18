@@ -91,7 +91,11 @@ export default function HomePage() {
           <div className="section-header">
             <div className="section-tag">{lang === "hi" ? "हमारी सेवाएं" : "Our Services"}</div>
             <h2 className="section-title" id="services-heading">
-              {lang === "hi" ? "परामर्श <span>सेवाएं</span>" : "Counselling <span>Services</span>"}
+              {lang === "hi" ? (
+                <>परामर्श <span>सेवाएं</span></>
+              ) : (
+                <>Counselling <span>Services</span></>
+              )}
             </h2>
             <p className="section-subtitle">
               {lang === "hi" ? "हर छात्र के लिए अनुकूलित मार्गदर्शन।" : "Tailored guidance for every student's unique journey."}
@@ -175,7 +179,11 @@ export default function HomePage() {
           <div className="section-header">
             <div className="section-tag">{t("reviews", lang)}</div>
             <h2 className="section-title" id="reviews-heading">
-              {lang === "hi" ? "छात्रों के <span>अनुभव</span>" : "What Students <span>Say</span>"}
+              {lang === "hi" ? (
+                <>छात्रों के <span>अनुभव</span></>
+              ) : (
+                <>What Students <span>Say</span></>
+              )}
             </h2>
             <p className="section-subtitle">
               {lang === "hi"
