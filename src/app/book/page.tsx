@@ -109,7 +109,7 @@ export default function BookAppointmentPage() {
     checkIntake();
   }, [checkIntake]);
 
-  // Check already booked slots for the selected date
+  // Check already booked slots for the selected date from slotLocks (public availability index)
   useEffect(() => {
     async function checkBookedSlots() {
       if (!date) {
@@ -118,28 +118,37 @@ export default function BookAppointmentPage() {
       }
       try {
         const q = query(
-          collection(db, "appointments"),
-          where("date", "==", date)
+          collection(db, "slotLocks"),
+          where("date", "==", date),
+          where("status", "==", "booked")
         );
         const snap = await getDocs(q);
         const taken = snap.docs
-          .map((d) => d.data())
-          .filter((d) => d.status !== "cancelled")
-          .map((d) => d.timeSlot);
+          .map((d) => d.data().timeSlot as string)
+          .filter(Boolean);
         setBookedSlots(taken);
-
-        // Select first available slot
-        if (dynamicSlotsInfo.slots.length > 0) {
-          const firstFree = dynamicSlotsInfo.slots.find((s) => !taken.includes(s));
-          setTimeSlot(firstFree || dynamicSlotsInfo.slots[0]);
-        }
       } catch (err) {
-        console.error("Error checking slot availability:", err);
+        console.warn("Error checking slotLocks availability:", err);
       }
     }
 
     checkBookedSlots();
-  }, [date, dynamicSlotsInfo.slots]);
+  }, [date]);
+
+  // Synchronize timeSlot selection with dynamicSlotsInfo and bookedSlots
+  useEffect(() => {
+    if (dynamicSlotsInfo.slots.length > 0) {
+      setTimeSlot((current) => {
+        if (current && dynamicSlotsInfo.slots.includes(current) && !bookedSlots.includes(current)) {
+          return current;
+        }
+        const firstFree = dynamicSlotsInfo.slots.find((s) => !bookedSlots.includes(s));
+        return firstFree || dynamicSlotsInfo.slots[0] || "";
+      });
+    } else {
+      setTimeSlot("");
+    }
+  }, [dynamicSlotsInfo.slots, bookedSlots]);
 
   // Auto-fill from logged in user
   useEffect(() => {
@@ -284,7 +293,16 @@ export default function BookAppointmentPage() {
       return;
     }
 
-    if (!timeSlot || bookedSlots.includes(timeSlot)) {
+    if (!timeSlot) {
+      setErrorMsg(
+        lang === "hi"
+          ? "कृपया पसंदीदा समय स्लॉट चुनें।"
+          : "Please select a preferred time slot."
+      );
+      return;
+    }
+
+    if (bookedSlots.includes(timeSlot)) {
       setErrorMsg(
         lang === "hi"
           ? "यह समय स्लॉट पहले से बुक हो चुका है। कृपया दूसरा स्लॉट चुनें।"
@@ -553,6 +571,11 @@ export default function BookAppointmentPage() {
                         onChange={(e) => setTimeSlot(e.target.value)}
                         required
                       >
+                        {!timeSlot && (
+                          <option value="" disabled>
+                            {lang === "hi" ? "-- समय स्लॉट चुनें --" : "-- Select Time Slot --"}
+                          </option>
+                        )}
                         {dynamicSlotsInfo.slots.map((slot) => {
                           const isBooked = bookedSlots.includes(slot);
                           return (
