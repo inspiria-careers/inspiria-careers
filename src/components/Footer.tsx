@@ -21,7 +21,7 @@ export default function Footer() {
         <div>
           <div className="footer-brand-name">{profile.siteName || "Inspiria Careers"}</div>
           <p className="footer-tagline">
-            {profile.subTagline || t("detailsComingSoon", lang)}
+            {profile.footerTagline || profile.subTagline || t("detailsComingSoon", lang)}
           </p>
           <div className="social-links" aria-label="Social media links">
             {profile.facebook && <a href={profile.facebook} target="_blank" rel="noreferrer" className="social-link" aria-label="Facebook">📘</a>}
@@ -55,9 +55,12 @@ export default function Footer() {
             {profile.email && <li><a href={`mailto:${profile.email}`}>✉️ {profile.email}</a></li>}
             {profile.phone && <li><a href={`tel:${profile.phone}`}>📞 {profile.phone}</a></li>}
             {whatsapp && <li><a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noreferrer">💬 WhatsApp</a></li>}
+            {profile.address && <li><span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>📍 {profile.address}</span></li>}
+            {profile.officeHours && <li><span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>⏰ {profile.officeHours}</span></li>}
             <li><Link href="/emergency" style={{ color: "#ef4444", fontWeight: 700 }}>🚨 {t("emergencyHelplines", lang)} (24×7)</Link></li>
             <li><Link href="/login">🔑 {t("login", lang)}</Link></li>
             {profile.privacyPolicyUrl && <li><Link href={profile.privacyPolicyUrl}>{t("privacyPolicy", lang)}</Link></li>}
+            {profile.termsOfServiceUrl && <li><Link href={profile.termsOfServiceUrl}>{lang === "hi" ? "नियम व शर्तें" : "Terms of Service"}</Link></li>}
             {profile.professionalRegNumber && (
               <li style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
                 📜 {profile.professionalRegNumber}
@@ -69,15 +72,21 @@ export default function Footer() {
 
       {/* Confidentiality + Emergency disclaimer */}
       <div className="footer-disclaimer" role="note" aria-label="Confidentiality and emergency notice">
-        🔒 {t("confidentiality", lang)} &nbsp;|&nbsp; ⚠️ Non-emergency service. In distress, call{" "}
-        <a href="tel:14416" style={{ fontWeight: 700, color: "inherit", textDecoration: "underline" }}>
-          Tele-MANAS (14416)
-        </a>{" "}
-        or visit our{" "}
-        <Link href="/emergency" style={{ fontWeight: 700, color: "inherit", textDecoration: "underline" }}>
-          {t("emergencyHelplines", lang)}
-        </Link>{" "}
-        directory.
+        {profile.footerDisclaimer ? (
+          <span>{profile.footerDisclaimer}</span>
+        ) : (
+          <>
+            🔒 {t("confidentiality", lang)} &nbsp;|&nbsp; ⚠️ Non-emergency service. In distress, call{" "}
+            <a href="tel:14416" style={{ fontWeight: 700, color: "inherit", textDecoration: "underline" }}>
+              Tele-MANAS (14416)
+            </a>{" "}
+            or visit our{" "}
+            <Link href="/emergency" style={{ fontWeight: 700, color: "inherit", textDecoration: "underline" }}>
+              {t("emergencyHelplines", lang)}
+            </Link>{" "}
+            directory.
+          </>
+        )}
       </div>
 
       {/* Bottom bar */}

@@ -278,7 +278,7 @@ export default function AdminDashboardPage() {
             className={`dash-nav-item${activeTab === "settings" ? " active" : ""}`}
             onClick={() => setActiveTab("settings")}
           >
-            ⚙️ Site Settings &amp; Feature Flags
+            ⚙️ Site &amp; Footer Settings
           </button>
 
           <div className="dash-section-title" style={{ marginTop: "1.5rem" }}>Quick Links</div>
@@ -712,8 +712,8 @@ export default function AdminDashboardPage() {
           {activeTab === "settings" && (
             <div>
               <div className="dash-header">
-                <h1>⚙️ Site Settings &amp; Info</h1>
-                <p>Modify organization information, contact channels, announcements, and footer details.</p>
+                <h1>⚙️ Site &amp; Footer Settings</h1>
+                <p>Modify organization information, contact channels, announcements, and all footer details.</p>
               </div>
 
               {saveSuccess && (
@@ -922,14 +922,93 @@ export default function AdminDashboardPage() {
                         placeholder="https://linkedin.com/in/..."
                       />
                     </div>
+                    <div className="form-group">
+                      <label className="form-label">Twitter / X Profile URL</label>
+                      <input
+                        type="url"
+                        className="form-input"
+                        value={formData.twitter || ""}
+                        onChange={(e) => setFormData({ ...formData, twitter: e.target.value })}
+                        placeholder="https://x.com/..."
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* Footer Legal & Developer Card */}
+                {/* Footer Information & Customization Card */}
                 <div className="card">
-                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "1rem" }}>
-                    ⚖️ Footer Legal &amp; Attribution
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "0.5rem" }}>
+                    🦶 Footer Information &amp; Customization
                   </h3>
+                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.25rem", lineHeight: 1.5 }}>
+                    Control every detail displayed in the website footer across all pages (brand tagline, legal links, registration number, disclaimer, and bottom copyright bar).
+                  </p>
+
+                  <div className="form-group" style={{ marginBottom: "1rem" }}>
+                    <label className="form-label">Footer Brand Tagline / Mission Note</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.footerTagline || ""}
+                      onChange={(e) => setFormData({ ...formData, footerTagline: e.target.value })}
+                      placeholder="Empowering students and individuals to make informed academic and career choices."
+                    />
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                      Shown directly beneath the site name in the footer's first column (falls back to sub-tagline if left blank).
+                    </span>
+                  </div>
+
+                  <div className="grid-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
+                    <div className="form-group">
+                      <label className="form-label">Privacy Policy Link URL / Path</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.privacyPolicyUrl || ""}
+                        onChange={(e) => setFormData({ ...formData, privacyPolicyUrl: e.target.value })}
+                        placeholder="/privacy"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Terms of Service Link URL / Path</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.termsOfServiceUrl || ""}
+                        onChange={(e) => setFormData({ ...formData, termsOfServiceUrl: e.target.value })}
+                        placeholder="/privacy"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: "1rem" }}>
+                    <label className="form-label">Professional Registration Number (Displayed in Footer)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.professionalRegNumber || ""}
+                      onChange={(e) => setFormData({ ...formData, professionalRegNumber: e.target.value })}
+                      placeholder="e.g. RCI Registration No. CRR-12345 or NCS ID: NC-67890"
+                    />
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                      Displayed in the footer Contact &amp; Legal column to establish trust and official compliance.
+                    </span>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: "1rem" }}>
+                    <label className="form-label">Footer Confidentiality &amp; Crisis Disclaimer Note</label>
+                    <textarea
+                      className="form-textarea"
+                      rows={2}
+                      value={formData.footerDisclaimer || ""}
+                      onChange={(e) => setFormData({ ...formData, footerDisclaimer: e.target.value })}
+                      placeholder="Leave blank to use the default Tele-MANAS (14416) emergency &amp; confidentiality notice, or enter a custom notice..."
+                    />
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                      Custom disclaimer banner appearing above the bottom copyright bar.
+                    </span>
+                  </div>
+
                   <div className="grid-2" style={{ gap: "1rem" }}>
                     <div className="form-group">
                       <label className="form-label">Copyright Notice Text</label>
@@ -942,7 +1021,7 @@ export default function AdminDashboardPage() {
                       />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Developed By Attribution</label>
+                      <label className="form-label">Designed &amp; Developed By Attribution</label>
                       <input
                         type="text"
                         className="form-input"

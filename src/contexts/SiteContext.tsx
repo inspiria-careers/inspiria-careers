@@ -107,10 +107,13 @@ export interface SiteProfile {
     available: string;
   }>;
 
-  // Footer legal
+  // Footer legal & customization
   privacyPolicyUrl: string;
+  termsOfServiceUrl?: string;
   copyrightText: string;
   developedBy: string;
+  footerTagline?: string;
+  footerDisclaimer?: string;
 
   // ── Phase 6: Optional Add-ons (all off by default) ──────────────
 
@@ -263,8 +266,11 @@ export const EMPTY_PROFILE: SiteProfile = {
     }
   ],
   privacyPolicyUrl: "/privacy",
+  termsOfServiceUrl: "/privacy",
   copyrightText: "",
   developedBy: "GAURAV SHUKLA",
+  footerTagline: "",
+  footerDisclaimer: "",
 
   // Phase 6 flags — all OFF by default
   messagingEnabled: false,
