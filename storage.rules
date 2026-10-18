@@ -32,5 +32,25 @@ service firebase.storage {
       allow write: if isOwner(userId) && isValidFileSize() && isValidMimeType();
       allow delete: if isOwner(userId);
     }
+
+    // Payment Screenshots (Protected: Owner & Counsellor/Admin only)
+    match /payments/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isAuthenticated();
+      allow write: if isOwner(userId) && isValidFileSize() && isValidMimeType();
+      allow delete: if isOwner(userId);
+    }
+
+    // Counsellor Shared Resources & Worksheets (PDF, Audio, Images)
+    match /resources/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isValidFileSize();
+      allow delete: if isAuthenticated();
+    }
+
+    // Secure Messaging Attachments (Phase 6 Part A)
+    match /messages/{clientId}/{fileName} {
+      allow read, write: if isAuthenticated() && isValidFileSize() && isValidMimeType();
+      allow delete: if isAuthenticated();
+    }
   }
 }

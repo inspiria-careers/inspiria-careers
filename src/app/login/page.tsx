@@ -11,7 +11,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get("redirect");
 
-  const { signInWithEmail, signInWithGoogle, user, role } = useAuth();
+  const { signInWithEmail, signInWithGoogle, role } = useAuth();
   const { profile, lang } = useSite();
 
   const [email, setEmail] = useState("");

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
+import NewsletterSubscribe from "@/components/NewsletterSubscribe";
 
 export default function Footer() {
   const { profile, lang } = useSite();
@@ -10,6 +11,11 @@ export default function Footer() {
 
   return (
     <footer className="footer" role="contentinfo">
+      {profile.newsletterEnabled && (
+        <div style={{ maxWidth: 1200, margin: "0 auto 1.5rem auto", padding: "0 1rem" }}>
+          <NewsletterSubscribe />
+        </div>
+      )}
       <div className="footer-grid">
         {/* Brand col */}
         <div>
@@ -34,6 +40,9 @@ export default function Footer() {
             <li><Link href="/">{t("home", lang)}</Link></li>
             <li><Link href="/about">{t("about", lang)}</Link></li>
             <li><Link href="/services">{t("services", lang)}</Link></li>
+            <li><Link href="/workshops">{t("workshops", lang)}</Link></li>
+            <li><Link href="/resources">{t("resources", lang)}</Link></li>
+            <li><Link href="/faq">{t("faqs", lang)}</Link></li>
             <li><Link href="/gallery">{t("gallery", lang)}</Link></li>
             <li><Link href="/contact">{t("contact", lang)}</Link></li>
           </ul>
@@ -46,15 +55,29 @@ export default function Footer() {
             {profile.email && <li><a href={`mailto:${profile.email}`}>✉️ {profile.email}</a></li>}
             {profile.phone && <li><a href={`tel:${profile.phone}`}>📞 {profile.phone}</a></li>}
             {whatsapp && <li><a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noreferrer">💬 WhatsApp</a></li>}
+            <li><Link href="/emergency" style={{ color: "#ef4444", fontWeight: 700 }}>🚨 {t("emergencyHelplines", lang)} (24×7)</Link></li>
             <li><Link href="/login">🔑 {t("login", lang)}</Link></li>
             {profile.privacyPolicyUrl && <li><Link href={profile.privacyPolicyUrl}>{t("privacyPolicy", lang)}</Link></li>}
+            {profile.professionalRegNumber && (
+              <li style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
+                📜 {profile.professionalRegNumber}
+              </li>
+            )}
           </ul>
         </div>
       </div>
 
       {/* Confidentiality + Emergency disclaimer */}
       <div className="footer-disclaimer" role="note" aria-label="Confidentiality and emergency notice">
-        🔒 {t("confidentiality", lang)} &nbsp;|&nbsp; ⚠️ {t("emergencyDisclaimer", lang)}
+        🔒 {t("confidentiality", lang)} &nbsp;|&nbsp; ⚠️ Non-emergency service. In distress, call{" "}
+        <a href="tel:14416" style={{ fontWeight: 700, color: "inherit", textDecoration: "underline" }}>
+          Tele-MANAS (14416)
+        </a>{" "}
+        or visit our{" "}
+        <Link href="/emergency" style={{ fontWeight: 700, color: "inherit", textDecoration: "underline" }}>
+          {t("emergencyHelplines", lang)}
+        </Link>{" "}
+        directory.
       </div>
 
       {/* Bottom bar */}

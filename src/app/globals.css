@@ -361,3 +361,34 @@ button { font-family: inherit; cursor: pointer; }
 .tabs { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
 .tab-btn { padding: .45rem 1.1rem; border-radius: 20px; font-size: .82rem; font-weight: 500; background: var(--surface-2); color: var(--text-muted); border: 1.5px solid var(--border); cursor: pointer; transition: all .15s; }
 .tab-btn.active { background: var(--brand-primary); color: #fff; border-color: var(--brand-primary); }
+
+/* ── Clean Print Styling (FB-102) ── */
+@media print {
+  @page {
+    margin: 1cm;
+    size: auto;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt;
+  }
+  .navbar, .footer, .dash-sidebar, .btn, .ticker-bar, button, [role="navigation"] {
+    display: none !important;
+  }
+  .modal-backdrop {
+    position: static !important;
+    background: none !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+  .modal-content {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+

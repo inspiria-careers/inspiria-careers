@@ -21,6 +21,7 @@ export interface AppUser {
   displayName: string | null;
   photoURL?: string | null;
   role: UserRole;
+  disabled?: boolean;
 }
 
 interface AuthContextType {
@@ -51,6 +52,7 @@ async function ensureUserDoc(
       displayName: u.displayName || extra?.displayName || null,
       photoURL: u.photoURL || null,
       role: extra?.role ?? "client",
+      disabled: false,
       createdAt: serverTimestamp(),
     };
     await setDoc(ref, newDoc);
@@ -64,21 +66,27 @@ async function ensureUserDoc(
     displayName: data.displayName ?? u.displayName,
     photoURL: data.photoURL ?? u.photoURL,
     role: (data.role as UserRole) ?? "client",
+    disabled: data.disabled ?? false,
   };
 }
 
-async function fetchAppUser(u: User): Promise<AppUser> {
+async function fetchAppUser(u: User): Promise<AppUser | null> {
   try {
     const ref = doc(db, "users", u.uid);
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const d = snap.data();
+      if (d.disabled === true) {
+        await signOut(auth);
+        return null;
+      }
       return {
         uid: u.uid,
         email: d.email ?? u.email,
         displayName: d.displayName ?? u.displayName,
         photoURL: d.photoURL ?? u.photoURL,
         role: (d.role as UserRole) ?? "client",
+        disabled: false,
       };
     }
   } catch {}
@@ -88,6 +96,7 @@ async function fetchAppUser(u: User): Promise<AppUser> {
     displayName: u.displayName,
     photoURL: u.photoURL,
     role: "client",
+    disabled: false,
   };
 }
 
@@ -101,8 +110,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (firebaseUser) {
         try {
           const appUser = await fetchAppUser(firebaseUser);
-          setUser(appUser);
-          setRole(appUser.role);
+          if (appUser) {
+            setUser(appUser);
+            setRole(appUser.role);
+          } else {
+            setUser(null);
+            setRole(null);
+          }
         } catch {
           setUser(null);
           setRole(null);

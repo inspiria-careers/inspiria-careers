@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
@@ -33,7 +33,8 @@ export default function PostsPage() {
   useEffect(() => {
     async function loadPosts() {
       try {
-        const snap = await getDocs(collection(db, "posts"));
+        const qPosts = query(collection(db, "posts"), limit(50));
+        const snap = await getDocs(qPosts);
         const items = snap.docs
           .map((d) => ({ id: d.id, ...d.data() } as PostItem))
           .filter((p) => p.published !== false);

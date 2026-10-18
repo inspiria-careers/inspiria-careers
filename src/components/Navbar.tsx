@@ -10,9 +10,10 @@ const NAV_LINKS = [
   { href: "/", label: "home" },
   { href: "/about", label: "about" },
   { href: "/services", label: "services" },
+  { href: "/workshops", label: "workshops" },
+  { href: "/resources", label: "resources" },
   { href: "/posts", label: "articles" },
   { href: "/reviews", label: "reviews" },
-  { href: "/gallery", label: "gallery" },
   { href: "/contact", label: "contact" },
 ];
 
@@ -35,11 +36,46 @@ export default function Navbar() {
   const dashHref = getDashHref(role);
 
   return (
-    <nav className="navbar" role="navigation" aria-label="Main navigation">
-      {/* Brand */}
-      <Link href="/" className="navbar-brand" aria-label={profile.siteName || "Home"}>
+    <>
+      {profile.maintenanceMode && (
+        <aside
+          role="status"
+          aria-live="polite"
+          style={{
+            background: "#b45309",
+            color: "#ffffff",
+            padding: "0.6rem 1rem",
+            textAlign: "center",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "0.75rem",
+            position: "sticky",
+            top: 0,
+            zIndex: 1001,
+          }}
+        >
+          <span>🛠️ {profile.maintenanceNoticeText || (lang === "hi" ? "साइट मेंटेनेंस चल रहा है — नई अपॉइंटमेंट बुकिंग अस्थायी रूप से रोकी गई है।" : "Scheduled Maintenance in Progress — New appointment bookings are temporarily paused.")}</span>
+          <Link
+            href="/emergency"
+            style={{
+              color: "#fef08a",
+              textDecoration: "underline",
+              fontSize: "0.8rem",
+              fontWeight: 700,
+            }}
+          >
+            {lang === "hi" ? "आपातकालीन नंबर देखें →" : "Emergency Helplines →"}
+          </Link>
+        </aside>
+      )}
+      <nav className="navbar" role="navigation" aria-label="Main navigation">
+        {/* Brand */}
+        <Link href="/" className="navbar-brand" aria-label={profile.siteName || "Home"}>
         {profile.siteLogo ? (
-          <img src={profile.siteLogo} alt="Logo" className="navbar-logo" />
+          <img src={profile.siteLogo} alt={profile.siteLogoAlt || profile.siteName || "Logo"} className="navbar-logo" />
         ) : (
           <div className="navbar-logo" style={{ background: "var(--brand-primary)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:"1.3rem" }}>
             {(profile.siteName || "I").charAt(0)}
@@ -103,5 +139,6 @@ export default function Navbar() {
         </button>
       </div>
     </nav>
+    </>
   );
 }

@@ -1,19 +1,23 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { addDoc, collection, serverTimestamp, getDocs, query, where } from "firebase/firestore";
+import {
+  collection,
+  serverTimestamp,
+  getDocs,
+  query,
+  where,
+  doc,
+  getDoc,
+  runTransaction,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
-
-const TIME_SLOTS = [
-  "10:00 AM - 11:00 AM",
-  "11:30 AM - 12:30 PM",
-  "02:00 PM - 03:00 PM",
-  "03:30 PM - 04:30 PM",
-  "05:00 PM - 06:00 PM",
-];
+import { getAvailableSlotsForDate } from "@/lib/slotUtils";
+import IntakeModal from "@/components/IntakeModal";
+import type { ClientIntake } from "@/types";
 
 export default function BookAppointmentPage() {
   const { user } = useAuth();
@@ -24,10 +28,14 @@ export default function BookAppointmentPage() {
   const [phone, setPhone] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [date, setDate] = useState("");
-  const [timeSlot, setTimeSlot] = useState(TIME_SLOTS[0]);
+  const [timeSlot, setTimeSlot] = useState("");
   const [mode, setMode] = useState<"Online" | "In-Person">("Online");
   const [notes, setNotes] = useState("");
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+
+  // Intake & Consent state
+  const [intakeCompleted, setIntakeCompleted] = useState<boolean | null>(null);
+  const [showIntakeModal, setShowIntakeModal] = useState(false);
 
   // Honeypot anti-spam
   const [hp, setHp] = useState("");
@@ -35,7 +43,53 @@ export default function BookAppointmentPage() {
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Check booked slots when date changes
+  // Min date: tomorrow
+  const minDate = useMemo(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split("T")[0];
+  }, []);
+
+  // Compute available slots dynamically based on weeklySchedule, slotDurationMinutes & slotBufferMinutes
+  const dynamicSlotsInfo = useMemo(() => {
+    if (!date) return { isDayAvailable: true, slots: [] };
+    return getAvailableSlotsForDate(
+      date,
+      profile.weeklySchedule,
+      profile.slotDurationMinutes || 45,
+      profile.slotBufferMinutes || 15
+    );
+  }, [date, profile.weeklySchedule, profile.slotDurationMinutes, profile.slotBufferMinutes]);
+
+  // Check client intake & consent status
+  const checkIntake = useCallback(async () => {
+    if (!user) {
+      setIntakeCompleted(null);
+      return;
+    }
+    try {
+      const snap = await getDoc(doc(db, "clientIntake", user.uid));
+      if (snap.exists()) {
+        const d = snap.data() as ClientIntake;
+        const currentVersion = profile.consentVersion || 1;
+        if (d.consentAccepted && d.consentVersion >= currentVersion) {
+          setIntakeCompleted(true);
+        } else {
+          setIntakeCompleted(false);
+        }
+      } else {
+        setIntakeCompleted(false);
+      }
+    } catch {
+      setIntakeCompleted(false);
+    }
+  }, [user, profile.consentVersion]);
+
+  useEffect(() => {
+    checkIntake();
+  }, [checkIntake]);
+
+  // Check already booked slots for the selected date
   useEffect(() => {
     async function checkBookedSlots() {
       if (!date) {
@@ -54,10 +108,10 @@ export default function BookAppointmentPage() {
           .map((d) => d.timeSlot);
         setBookedSlots(taken);
 
-        // If current slot is taken, switch to first available
-        if (taken.includes(timeSlot)) {
-          const firstFree = TIME_SLOTS.find((s) => !taken.includes(s));
-          if (firstFree) setTimeSlot(firstFree);
+        // Select first available slot
+        if (dynamicSlotsInfo.slots.length > 0) {
+          const firstFree = dynamicSlotsInfo.slots.find((s) => !taken.includes(s));
+          setTimeSlot(firstFree || dynamicSlotsInfo.slots[0]);
         }
       } catch (err) {
         console.error("Error checking slot availability:", err);
@@ -65,7 +119,7 @@ export default function BookAppointmentPage() {
     }
 
     checkBookedSlots();
-  }, [date]);
+  }, [date, dynamicSlotsInfo.slots]);
 
   // Auto-fill from logged in user
   useEffect(() => {
@@ -73,7 +127,7 @@ export default function BookAppointmentPage() {
       if (user.displayName && !name) setName(user.displayName);
       if (user.email && !email) setEmail(user.email);
     }
-  }, [user]);
+  }, [user, name, email]);
 
   // Set default service
   useEffect(() => {
@@ -81,6 +135,74 @@ export default function BookAppointmentPage() {
       setServiceId(services[0].id);
     }
   }, [services, serviceId]);
+
+  const executeBooking = async () => {
+    const selectedService = services.find((s) => s.id === serviceId);
+    const feeNum = selectedService?.fee ? Number(selectedService.fee) : 0;
+    const requiresPayment = feeNum > 0;
+
+    setStatus("submitting");
+    setErrorMsg("");
+
+    try {
+      const lockKey = `${date}_${timeSlot.replace(/[^a-zA-Z0-9]/g, "_")}`;
+      const lockRef = doc(db, "slotLocks", lockKey);
+      const newApptRef = doc(collection(db, "appointments"));
+
+      await runTransaction(db, async (tx) => {
+        const lockSnap = await tx.get(lockRef);
+        if (lockSnap.exists() && lockSnap.data().status === "booked") {
+          throw new Error("SLOT_TAKEN");
+        }
+
+        tx.set(lockRef, {
+          date,
+          timeSlot,
+          status: "booked",
+          appointmentId: newApptRef.id,
+          userId: user?.uid || null,
+          lockedAt: new Date().toISOString(),
+        });
+
+        tx.set(newApptRef, {
+          userId: user?.uid || null,
+          clientName: name.trim(),
+          clientEmail: email.trim() || null,
+          clientPhone: phone.trim(),
+          serviceId: serviceId || null,
+          serviceTitle: selectedService?.title || "General Counselling",
+          serviceFee: requiresPayment ? feeNum : null,
+          paymentStatus: requiresPayment ? "pending" : "not_required",
+          date,
+          timeSlot,
+          mode,
+          notes: notes.trim(),
+          status: "pending",
+          reminderSent: false,
+          intakeCompleted: !!intakeCompleted,
+          createdAt: serverTimestamp(),
+        });
+      });
+
+      setStatus("success");
+    } catch (err: any) {
+      console.error("Booking error:", err);
+      setStatus("error");
+      if (err.message === "SLOT_TAKEN") {
+        setErrorMsg(
+          lang === "hi"
+            ? "यह समय स्लॉट अभी-अभी किसी अन्य क्लाइंट द्वारा बुक कर लिया गया है। कृपया कोई अन्य स्लॉट चुनें।"
+            : "This time slot was just booked by another client. Please select an alternate time slot."
+        );
+      } else {
+        setErrorMsg(
+          lang === "hi"
+            ? "अपॉइंटमेंट बुक करने में त्रुटि हुई। कृपया पुनः प्रयास करें।"
+            : "Failed to book appointment. Please try again."
+        );
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,7 +222,26 @@ export default function BookAppointmentPage() {
       return;
     }
 
-    if (bookedSlots.includes(timeSlot)) {
+    const blockedDates = profile.blockedDates || [];
+    if (blockedDates.includes(date)) {
+      setErrorMsg(
+        lang === "hi"
+          ? "चयनित तारीख पर काउंसलर उपलब्ध नहीं हैं (अवकाश / अनुपलब्ध)। कृपया कोई अन्य तारीख चुनें।"
+          : "This date is marked as a holiday/unavailable by the counsellor. Please select an alternate date."
+      );
+      return;
+    }
+
+    if (!dynamicSlotsInfo.isDayAvailable) {
+      setErrorMsg(
+        lang === "hi"
+          ? "काउंसलर इस दिन उपलब्ध नहीं हैं। कृपया कार्य दिवस चुनें।"
+          : "The counsellor is unavailable on this day. Please pick a working day."
+      );
+      return;
+    }
+
+    if (!timeSlot || bookedSlots.includes(timeSlot)) {
       setErrorMsg(
         lang === "hi"
           ? "यह समय स्लॉट पहले से बुक हो चुका है। कृपया दूसरा स्लॉट चुनें।"
@@ -109,48 +250,52 @@ export default function BookAppointmentPage() {
       return;
     }
 
-    const selectedService = services.find((s) => s.id === serviceId);
-
-    try {
-      setStatus("submitting");
-      setErrorMsg("");
-
-      await addDoc(collection(db, "appointments"), {
-        userId: user?.uid || null,
-        clientName: name.trim(),
-        clientEmail: email.trim() || null,
-        clientPhone: phone.trim(),
-        serviceId: serviceId || null,
-        serviceTitle: selectedService?.title || "General Counselling",
-        date,
-        timeSlot,
-        mode,
-        notes: notes.trim(),
-        status: "pending",
-        createdAt: serverTimestamp(),
-      });
-
-      setStatus("success");
-    } catch (err: any) {
-      console.error("Booking error:", err);
-      setStatus("error");
-      setErrorMsg(
-        lang === "hi"
-          ? "अपॉइंटमेंट बुक करने में त्रुटि हुई। कृपया पुनः प्रयास करें।"
-          : "Failed to book appointment. Please try again."
-      );
+    // If client is logged in and hasn't completed intake/consent, prompt intake modal
+    if (user && intakeCompleted === false) {
+      setShowIntakeModal(true);
+      return;
     }
-  };
 
-  // Min date: tomorrow
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().split("T")[0];
+    await executeBooking();
+  };
 
   return (
     <div className="page-wrapper">
       <section className="section">
         <div className="container" style={{ maxWidth: "760px" }}>
+          {/* Trust & Safety: Prominent Non-Emergency Disclaimer */}
+          <div
+            style={{
+              background: "#fffbeb",
+              border: "1px solid #fde68a",
+              borderRadius: "12px",
+              padding: "0.85rem 1.25rem",
+              marginBottom: "1.5rem",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "0.75rem",
+              fontSize: "0.85rem",
+              color: "#92400e",
+              lineHeight: 1.5,
+            }}
+          >
+            <span style={{ fontSize: "1.25rem" }}>⚠️</span>
+            <div>
+              <strong>
+                {lang === "hi" ? "आपातकालीन सूचना:" : "Non-Emergency Notice:"}
+              </strong>{" "}
+              {lang === "hi"
+                ? "इन्स्पिरिया करियर पूर्व-निर्धारित मार्गदर्शन सेवा है, मनोरोग आपातकालीन सेवा नहीं। तीव्र संकट की स्थिति में कृपया "
+                : "Inspiria Careers is a scheduled guidance service, not an acute emergency crisis intervention unit. In acute distress, please call "}
+              <strong>Tele-MANAS (14416 - 24×7)</strong>{" "}
+              {lang === "hi" ? "पर कॉल करें या हमारी " : "or visit our "}
+              <Link href="/emergency" style={{ textDecoration: "underline", fontWeight: 700, color: "#78350f" }}>
+                {t("emergencyHelplines", lang)}
+              </Link>{" "}
+              {lang === "hi" ? "सूची देखें।" : "directory."}
+            </div>
+          </div>
+
           <div className="section-header">
             <span className="section-tag">{t("bookAppointment", lang)}</span>
             <h1 className="section-title">
@@ -165,7 +310,27 @@ export default function BookAppointmentPage() {
           </div>
 
           <div className="card">
-            {status === "success" ? (
+            {profile.maintenanceMode ? (
+              <div style={{ textAlign: "center", padding: "3rem 1.5rem" }}>
+                <div style={{ fontSize: "3.5rem", marginBottom: "1rem" }}>🛠️</div>
+                <h2 style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--brand-primary)", marginBottom: "0.75rem" }}>
+                  {lang === "hi" ? "अपॉइंटमेंट बुकिंग अस्थायी रूप से स्थगित है" : "Bookings Temporarily Paused"}
+                </h2>
+                <p style={{ color: "var(--text-muted)", maxWidth: "560px", margin: "0 auto 1.5rem", lineHeight: 1.7 }}>
+                  {profile.maintenanceNoticeText || (lang === "hi"
+                    ? "वर्तमान में प्रणाली का रखरखाव चल रहा है। नई अपॉइंटमेंट बुकिंग कुछ समय के लिए रोकी गई है। कृपया थोड़ी देर बाद पुनः प्रयास करें।"
+                    : "We are currently conducting scheduled system maintenance. New appointment bookings are temporarily paused. Please check back shortly.")}
+                </p>
+                <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
+                  <Link href="/emergency" className="btn btn-outline" style={{ borderColor: "#dc2626", color: "#dc2626" }}>
+                    🚨 {lang === "hi" ? "आपातकालीन हेल्पलाइन" : "Emergency Helplines"}
+                  </Link>
+                  <Link href="/" className="btn btn-primary">
+                    {t("home", lang)}
+                  </Link>
+                </div>
+              </div>
+            ) : status === "success" ? (
               <div style={{ textAlign: "center", padding: "2.5rem 1rem" }}>
                 <div style={{ fontSize: "3.5rem", marginBottom: "1rem" }}>✅</div>
                 <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--brand-primary)", marginBottom: "0.75rem" }}>
@@ -242,6 +407,7 @@ export default function BookAppointmentPage() {
                         services.map((s) => (
                           <option key={s.id} value={s.id}>
                             {s.title}
+                            {s.fee && Number(s.fee) > 0 ? ` (₹${s.fee})` : (lang === "hi" ? " (निःशुल्क)" : " (Free)")}
                           </option>
                         ))
                       ) : (
@@ -268,20 +434,34 @@ export default function BookAppointmentPage() {
 
                   <div className="form-group">
                     <label className="form-label">{lang === "hi" ? "समय स्लॉट *" : "Preferred Time Slot *"}</label>
-                    <select
-                      className="form-select"
-                      value={timeSlot}
-                      onChange={(e) => setTimeSlot(e.target.value)}
-                    >
-                      {TIME_SLOTS.map((slot) => {
-                        const isBooked = bookedSlots.includes(slot);
-                        return (
-                          <option key={slot} value={slot} disabled={isBooked}>
-                            {slot} {isBooked ? `(${lang === "hi" ? "बुक हो चुका" : "Booked"})` : ""}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    {dynamicSlotsInfo.slots.length > 0 ? (
+                      <select
+                        className="form-select"
+                        value={timeSlot}
+                        onChange={(e) => setTimeSlot(e.target.value)}
+                        required
+                      >
+                        {dynamicSlotsInfo.slots.map((slot) => {
+                          const isBooked = bookedSlots.includes(slot);
+                          return (
+                            <option key={slot} value={slot} disabled={isBooked}>
+                              {slot} {isBooked ? `(${lang === "hi" ? "बुक हो चुका" : "Booked"})` : ""}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    ) : (
+                      <div style={{ padding: "0.65rem", fontSize: "0.85rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                        {date
+                          ? (lang === "hi" ? "इस तारीख पर कोई स्लॉट उपलब्ध नहीं है।" : "No slots available on this date.")
+                          : (lang === "hi" ? "कृपया पहले तारीख चुनें।" : "Please select a date first.")}
+                      </div>
+                    )}
+                    {dynamicSlotsInfo.slots.length > 0 && dynamicSlotsInfo.slots.every((s) => bookedSlots.includes(s)) && (
+                      <div style={{ marginTop: "0.4rem", padding: "0.5rem 0.75rem", borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", fontSize: "0.82rem" }}>
+                        ⚠️ {lang === "hi" ? "इस तारीख के सभी स्लॉट बुक हो चुके हैं। कृपया कोई अन्य तारीख चुनें।" : "All slots on this date are fully booked. Please choose another date."}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -337,6 +517,42 @@ export default function BookAppointmentPage() {
                   />
                 </div>
 
+                {(() => {
+                  const sel = services.find((s) => s.id === serviceId);
+                  const fee = sel?.fee ? Number(sel.fee) : 0;
+                  if (fee > 0) {
+                    return (
+                      <div
+                        style={{
+                          padding: "0.85rem 1rem",
+                          background: "var(--surface-2)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "var(--radius)",
+                          fontSize: "0.85rem",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "0.35rem",
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, color: "var(--brand-primary)" }}>
+                          💳 {lang === "hi" ? "परामर्श शुल्क:" : "Consultation Fee:"} ₹{fee}
+                        </div>
+                        <div style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                          {lang === "hi"
+                            ? "बुकिंग के बाद आपके डैशबोर्ड में QR कोड व UPI विवरण मिलेगा। भुगतान सत्यापन के बाद सत्र कन्फर्म होगा।"
+                            : "After booking, you will see the payment QR code & UPI options in your dashboard. Session will be confirmed upon payment verification."}
+                        </div>
+                        {profile.refundPolicyText && (
+                          <div style={{ color: "var(--text-muted)", fontSize: "0.78rem", borderTop: "1px dashed var(--border)", paddingTop: "0.35rem", marginTop: "0.25rem" }}>
+                            📜 <strong>{lang === "hi" ? "रद्दकरण / रिफंड नीति:" : "Cancellation & Refund Policy:"}</strong> {profile.refundPolicyText}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
                 <div style={{ borderTop: "1px solid var(--border)", paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
                   <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
                     🔒 {t("confidentiality", lang)}
@@ -354,6 +570,18 @@ export default function BookAppointmentPage() {
           </div>
         </div>
       </section>
+
+      {/* Mandatory Intake Form & Informed Consent Modal */}
+      <IntakeModal
+        isOpen={showIntakeModal}
+        requiredForBooking={true}
+        onClose={() => setShowIntakeModal(false)}
+        onSuccess={async () => {
+          setIntakeCompleted(true);
+          setShowIntakeModal(false);
+          await executeBooking();
+        }}
+      />
     </div>
   );
 }

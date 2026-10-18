@@ -25,9 +25,14 @@ export default function AboutPage() {
               {hasData ? profile.counsellorName : t("detailsComingSoon", lang)}
             </h1>
             {profile.counsellorTitle && (
-              <p style={{ color: "var(--brand-secondary)", fontWeight: 600, fontSize: "1.05rem", margin: ".5rem 0 1.5rem" }}>
+              <p style={{ color: "var(--brand-secondary)", fontWeight: 600, fontSize: "1.05rem", margin: ".5rem 0 .5rem" }}>
                 {profile.counsellorTitle}
               </p>
+            )}
+            {profile.professionalRegNumber && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.25rem 0.75rem", background: "rgba(26,58,143,0.08)", color: "var(--brand-primary)", borderRadius: "999px", fontSize: "0.825rem", fontWeight: 600, marginBottom: "1.5rem" }}>
+                📜 {profile.professionalRegNumber}
+              </div>
             )}
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: "3rem", alignItems: "start" }}>

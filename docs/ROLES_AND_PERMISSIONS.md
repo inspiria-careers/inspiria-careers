@@ -45,6 +45,37 @@ This document details the exact permissions across the three system roles: **Adm
 | **Contact Inquiries (`messages`)** | | | | |
 | Send Contact Message (`/contact`) | ✅ | ✅ | ✅ | ✅ |
 | View / Manage Received Messages | ✅ | ✅ | ❌ | ❌ |
+| **Payments & Financial Verification** | | | | |
+| Upload / Update Counsellor Payment QR & UPI ID | ✅ | ✅ | ❌ | ❌ |
+| Set Consultation Fees per Service (INR) | ✅ | ✅ | ❌ | ❌ |
+| Submit Payment UTR Reference & Proof Screenshot | ❌ | ❌ | ✅ (Own Only) | ❌ |
+| Verify Payment Credit & Confirm Session | ✅ | ✅ | ❌ | ❌ |
+| Reject Payment with Mandatory Reason | ✅ | ✅ | ❌ | ❌ |
+| Record Client Refund & Cancel Session | ✅ | ✅ | ❌ | ❌ |
+| View / Print Computer-Generated Digital Receipt | ✅ | ✅ | ✅ (Own Only) | ❌ |
+| Export Financial Payments Report (CSV) | ✅ | ✅ | ❌ | ❌ |
+| **Phase 5: Counselling Features & Clinical Privacy** | | | | |
+| Complete / Update Confidential Intake Questionnaire | ❌ | ❌ | ✅ (Own Only) | ❌ |
+| View Client Intake Details | ❌ (Strictly Denied) | ✅ | ✅ (Own Only) | ❌ |
+| Create / Edit Clinical Session Notes (`sessionNotes`) | ❌ (Strictly Denied) | ✅ | ❌ (Strictly Denied) | ❌ |
+| Export / Print Clinical Session Notes | ❌ (Strictly Denied) | ✅ | ❌ (Strictly Denied) | ❌ |
+| Create & Assign Client Tasks / Homework | ❌ | ✅ | ❌ | ❌ |
+| Mark Task Completed & Add Reflection | ❌ | ✅ | ✅ (Own Only) | ❌ |
+| Maintain Private Mindfulness & Gratitude Journal | ❌ | ❌ | ✅ (Own Only) | ❌ |
+| View Journal marked `sharedWithCounsellor` | ❌ (Strictly Denied) | ✅ | ✅ (Own Only) | ❌ |
+| Manage Educational Resources Hub (Create/Delete) | ❌ | ✅ | ❌ | ❌ |
+| Manage Workshops, Capacity & Attendees | ❌ | ✅ | ❌ | ❌ |
+| Register for Workshop / Join Waitlist | ✅ | ✅ | ✅ | ✅ |
+| Submit DPDPA 2023 Formal Deletion Request | ❌ | ❌ | ✅ (Own Only) | ❌ |
+| Process & Resolve DPDPA Deletion Queue | ✅ | ✅ | ❌ | ❌ |
+| View Aggregate Insights (Pure CSS/SVG Analytics) | ❌ | ✅ | ❌ | ❌ |
+| **Phase 6: Optional Add-ons & Messaging Privacy** | | | | |
+| Exchange Asynchronous Messages & Attachments (`threads`) | ❌ (Strictly Denied) | ✅ | ✅ (Own Thread) | ❌ |
+| Manage WhatsApp / SMS Reminder Opt-In (`reminderPreferences`) | ❌ | ✅ | ✅ (Own Only) | ❌ |
+| Submit Private Session Feedback (`sessionFeedback`) | ❌ | ❌ | ✅ (Own Session) | ❌ |
+| View Private Session Feedback & Manage Follow-up Queue | ❌ (Strictly Denied) | ✅ | ❌ | ❌ |
+| Subscribe / Unsubscribe to Career Tips Newsletter | ✅ | ✅ | ✅ | ✅ |
+| Manage Newsletter Subscribers & Export CSV | ✅ | ✅ | ❌ | ❌ |
 
 ---
 

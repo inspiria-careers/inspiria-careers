@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
@@ -28,7 +28,7 @@ export default function ReviewsPage() {
   useEffect(() => {
     async function loadReviews() {
       try {
-        const q = query(collection(db, "reviews"), where("approved", "==", true));
+        const q = query(collection(db, "reviews"), where("approved", "==", true), limit(50));
         const snap = await getDocs(q);
         const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ReviewItem));
 

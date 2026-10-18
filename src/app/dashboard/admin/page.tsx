@@ -1,10 +1,12 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
 import { useSite, SiteProfile } from "@/contexts/SiteContext";
+import { logAuditEvent, AuditLogEntry } from "@/lib/auditLog";
+import ImageUploader from "@/components/ImageUploader";
 import { t } from "@/translations";
 
 interface FirestoreUser {
@@ -12,6 +14,7 @@ interface FirestoreUser {
   email: string | null;
   displayName: string | null;
   role: UserRole;
+  disabled?: boolean;
   createdAt?: any;
 }
 
@@ -19,12 +22,16 @@ export default function AdminDashboardPage() {
   const { user, role, loading: authLoading, sendPasswordReset } = useAuth();
   const { profile, updateProfile, lang } = useSite();
 
-  const [activeTab, setActiveTab] = useState<"users" | "theme" | "settings">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "audit" | "export" | "theme" | "settings">("users");
 
   // User management state
   const [usersList, setUsersList] = useState<FirestoreUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [userActionStatus, setUserActionStatus] = useState<string | null>(null);
+
+  // Audit logs state
+  const [auditLogsList, setAuditLogsList] = useState<(AuditLogEntry & { id: string })[]>([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
 
   // Settings form state
   const [formData, setFormData] = useState<SiteProfile>(profile);
@@ -39,7 +46,7 @@ export default function AdminDashboardPage() {
   const loadUsers = async () => {
     try {
       setLoadingUsers(true);
-      const snap = await getDocs(collection(db, "users"));
+      const snap = await getDocs(query(collection(db, "users"), limit(200)));
       const list: FirestoreUser[] = snap.docs.map((d) => {
         const data = d.data();
         return {
@@ -47,6 +54,7 @@ export default function AdminDashboardPage() {
           email: data.email ?? null,
           displayName: data.displayName ?? null,
           role: (data.role as UserRole) ?? "client",
+          disabled: data.disabled ?? false,
           createdAt: data.createdAt,
         };
       });
@@ -58,10 +66,24 @@ export default function AdminDashboardPage() {
     }
   };
 
-  useEffect(() => {
-    if (activeTab === "users") {
-      loadUsers();
+  // Load audit logs
+  const loadAuditLogs = async () => {
+    try {
+      setLoadingAudit(true);
+      const q = query(collection(db, "auditLogs"), orderBy("timestamp", "desc"), limit(50));
+      const snap = await getDocs(q);
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
+      setAuditLogsList(list);
+    } catch (err) {
+      console.error("Error loading audit logs:", err);
+    } finally {
+      setLoadingAudit(false);
     }
+  };
+
+  useEffect(() => {
+    if (activeTab === "users") loadUsers();
+    if (activeTab === "audit") loadAuditLogs();
   }, [activeTab]);
 
   const handleRoleChange = async (targetUid: string, newRole: UserRole) => {
@@ -71,11 +93,46 @@ export default function AdminDashboardPage() {
       setUsersList((prev) =>
         prev.map((u) => (u.uid === targetUid ? { ...u, role: newRole } : u))
       );
+      await logAuditEvent({
+        actorUid: user?.uid || "",
+        actorEmail: user?.email || null,
+        actorRole: role || "admin",
+        action: "CHANGE_USER_ROLE",
+        details: `Changed role of user ${targetUid} to ${newRole}`,
+        targetId: targetUid,
+      });
       setUserActionStatus("✓ User role updated successfully.");
       setTimeout(() => setUserActionStatus(null), 3500);
     } catch (err) {
       console.error("Error updating role:", err);
       setUserActionStatus("✕ Failed to update user role.");
+    }
+  };
+
+  const handleToggleUserDisabled = async (targetUid: string, currentDisabled: boolean) => {
+    const nextDisabled = !currentDisabled;
+    if (targetUid === user?.uid) {
+      alert("You cannot disable your own administrator account.");
+      return;
+    }
+    try {
+      setUserActionStatus(nextDisabled ? "Disabling user account..." : "Enabling user account...");
+      await updateDoc(doc(db, "users", targetUid), { disabled: nextDisabled });
+      setUsersList((prev) =>
+        prev.map((u) => (u.uid === targetUid ? { ...u, disabled: nextDisabled } : u))
+      );
+      await logAuditEvent({
+        actorUid: user?.uid || "",
+        actorEmail: user?.email || null,
+        actorRole: role || "admin",
+        action: nextDisabled ? "DISABLE_USER" : "ENABLE_USER",
+        details: `${nextDisabled ? "Disabled" : "Enabled"} account of user ${targetUid}`,
+        targetId: targetUid,
+      });
+      setUserActionStatus(nextDisabled ? "✓ User account disabled." : "✓ User account enabled.");
+      setTimeout(() => setUserActionStatus(null), 3500);
+    } catch {
+      alert("Failed to update user account status.");
     }
   };
 
@@ -88,7 +145,7 @@ export default function AdminDashboardPage() {
       await sendPasswordReset(email);
       setUserActionStatus(`✓ Password reset email sent to ${email}`);
       setTimeout(() => setUserActionStatus(null), 4000);
-    } catch (err) {
+    } catch {
       alert("Failed to send password reset email.");
     }
   };
@@ -99,6 +156,13 @@ export default function AdminDashboardPage() {
       setSavingSettings(true);
       setSaveSuccess(false);
       await updateProfile(formData);
+      await logAuditEvent({
+        actorUid: user?.uid || "",
+        actorEmail: user?.email || null,
+        actorRole: role || "admin",
+        action: "UPDATE_SITE_SETTINGS",
+        details: `Updated site configuration, branding & feature flags (paymentsEnabled: ${formData.paymentsEnabled})`,
+      });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
@@ -106,6 +170,61 @@ export default function AdminDashboardPage() {
       alert("Failed to save site settings.");
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  // CSV Exporters
+  const exportAppointmentsCsv = async () => {
+    try {
+      const snap = await getDocs(query(collection(db, "appointments"), limit(1000)));
+      const appts = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
+      const headers = ["ID", "Client Name", "Email", "Phone", "Service", "Date", "Time Slot", "Mode", "Status", "Payment Status", "Meeting Link"];
+      const rows = appts.map((a) => [
+        `"${a.id}"`,
+        `"${(a.clientName || "").replace(/"/g, '""')}"`,
+        `"${(a.clientEmail || "").replace(/"/g, '""')}"`,
+        `"${(a.clientPhone || "").replace(/"/g, '""')}"`,
+        `"${(a.serviceTitle || "").replace(/"/g, '""')}"`,
+        `"${a.date || ""}"`,
+        `"${a.timeSlot || ""}"`,
+        `"${a.mode || ""}"`,
+        `"${a.status || ""}"`,
+        `"${a.paymentStatus || "not_required"}"`,
+        `"${(a.meetingLink || "").replace(/"/g, '""')}"`,
+      ]);
+      const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+      const link = document.createElement("a");
+      link.setAttribute("href", encodeURI(csvContent));
+      link.setAttribute("download", `all_appointments_${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch {
+      alert("Failed to export appointments.");
+    }
+  };
+
+  const exportReviewsCsv = async () => {
+    try {
+      const snap = await getDocs(query(collection(db, "reviews"), limit(500)));
+      const revs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
+      const headers = ["ID", "Client Name", "Rating", "Approved", "Comment"];
+      const rows = revs.map((r) => [
+        `"${r.id}"`,
+        `"${(r.clientName || "").replace(/"/g, '""')}"`,
+        `"${r.rating}"`,
+        `"${r.approved ? "Yes" : "No"}"`,
+        `"${(r.comment || "").replace(/"/g, '""').replace(/\n/g, " ")}"`,
+      ]);
+      const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+      const link = document.createElement("a");
+      link.setAttribute("href", encodeURI(csvContent));
+      link.setAttribute("download", `all_reviews_${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch {
+      alert("Failed to export reviews.");
     }
   };
 
@@ -130,12 +249,24 @@ export default function AdminDashboardPage() {
             <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{user?.email}</div>
           </div>
 
-          <div className="dash-section-title">Navigation</div>
+          <div className="dash-section-title">Administration</div>
           <button
             className={`dash-nav-item${activeTab === "users" ? " active" : ""}`}
             onClick={() => setActiveTab("users")}
           >
             👥 User &amp; Role Management
+          </button>
+          <button
+            className={`dash-nav-item${activeTab === "audit" ? " active" : ""}`}
+            onClick={() => setActiveTab("audit")}
+          >
+            📋 System Audit Logs
+          </button>
+          <button
+            className={`dash-nav-item${activeTab === "export" ? " active" : ""}`}
+            onClick={() => setActiveTab("export")}
+          >
+            📥 Data Exports (CSV)
           </button>
           <button
             className={`dash-nav-item${activeTab === "theme" ? " active" : ""}`}
@@ -147,7 +278,7 @@ export default function AdminDashboardPage() {
             className={`dash-nav-item${activeTab === "settings" ? " active" : ""}`}
             onClick={() => setActiveTab("settings")}
           >
-            ⚙️ Site Settings &amp; Info
+            ⚙️ Site Settings &amp; Feature Flags
           </button>
 
           <div className="dash-section-title" style={{ marginTop: "1.5rem" }}>Quick Links</div>
@@ -166,7 +297,7 @@ export default function AdminDashboardPage() {
             <div>
               <div className="dash-header">
                 <h1>👥 User &amp; Role Management</h1>
-                <p>View registered accounts, change roles (Admin / Counsellor / Client), and trigger password resets.</p>
+                <p>View registered accounts, change roles (Admin / Counsellor / Client), enable/disable accounts, and trigger password resets.</p>
               </div>
 
               {userActionStatus && (
@@ -198,6 +329,7 @@ export default function AdminDashboardPage() {
                         <tr>
                           <th>User</th>
                           <th>Email</th>
+                          <th>Status</th>
                           <th>Current Role</th>
                           <th>Change Role</th>
                           <th>Password Reset</th>
@@ -215,6 +347,30 @@ export default function AdminDashboardPage() {
                               )}
                             </td>
                             <td>{u.email || "No email"}</td>
+                            <td>
+                              <span
+                                className={`badge ${
+                                  u.disabled ? "badge-error" : "badge-success"
+                                }`}
+                              >
+                                {u.disabled ? "Disabled" : "Active"}
+                              </span>
+                              {u.uid !== user?.uid && (
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-sm"
+                                  style={{
+                                    marginLeft: "0.4rem",
+                                    fontSize: "0.72rem",
+                                    padding: "0.15rem 0.35rem",
+                                    color: u.disabled ? "var(--brand-primary)" : "var(--error)",
+                                  }}
+                                  onClick={() => handleToggleUserDisabled(u.uid, !!u.disabled)}
+                                >
+                                  {u.disabled ? "Enable" : "Disable"}
+                                </button>
+                              )}
+                            </td>
                             <td>
                               <span
                                 className={`badge ${
@@ -261,7 +417,109 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
-          {/* TAB 2: THEME & BRANDING */}
+          {/* TAB 2: AUDIT LOGS */}
+          {activeTab === "audit" && (
+            <div>
+              <div className="dash-header">
+                <h1>📋 System Audit Logs</h1>
+                <p>Immutable record of administrative operations: user role modifications, account suspensions, content deletions, and site settings updates.</p>
+              </div>
+
+              <div className="card" style={{ padding: "1.25rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+                    Recent Activity Logs ({auditLogsList.length})
+                  </h3>
+                  <button className="btn btn-ghost btn-sm" onClick={loadAuditLogs} disabled={loadingAudit}>
+                    🔄 {loadingAudit ? "Loading..." : "Refresh Logs"}
+                  </button>
+                </div>
+
+                {loadingAudit ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
+                    <div className="spinner" />
+                  </div>
+                ) : auditLogsList.length === 0 ? (
+                  <div className="empty-state">
+                    <p>No audit events recorded yet.</p>
+                  </div>
+                ) : (
+                  <div className="table-wrap">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Action</th>
+                          <th>Actor</th>
+                          <th>Details</th>
+                          <th>Resource / ID</th>
+                          <th>Timestamp</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {auditLogsList.map((log) => {
+                          const dateStr = log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString() : "Just now";
+                          return (
+                            <tr key={log.id}>
+                              <td>
+                                <span className="badge badge-primary" style={{ fontSize: "0.72rem" }}>
+                                  {log.action}
+                                </span>
+                              </td>
+                              <td>
+                                <strong>{log.actorEmail || "System Admin"}</strong>
+                                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Role: {log.actorRole}</div>
+                              </td>
+                              <td style={{ fontSize: "0.85rem", maxWidth: "300px" }}>{log.details}</td>
+                              <td style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{log.targetId || "—"}</td>
+                              <td style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}>{dateStr}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: DATA EXPORT */}
+          {activeTab === "export" && (
+            <div>
+              <div className="dash-header">
+                <h1>📥 Data Export Hub</h1>
+                <p>Download full structured CSV archives for appointments, consultations, and verified client testimonials.</p>
+              </div>
+
+              <div className="grid-2" style={{ gap: "1.5rem" }}>
+                <div className="card">
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "0.5rem" }}>
+                    📅 Consultation Appointments
+                  </h3>
+                  <p style={{ fontSize: "0.88rem", color: "var(--text-muted)", marginBottom: "1.25rem", lineHeight: 1.6 }}>
+                    Export all consultation bookings including student names, phone numbers, email addresses, session dates, time slots, session modes, fees, and current statuses.
+                  </p>
+                  <button type="button" className="btn btn-primary" onClick={exportAppointmentsCsv}>
+                    📥 Export Appointments (CSV)
+                  </button>
+                </div>
+
+                <div className="card">
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "0.5rem" }}>
+                    ⭐ Client Reviews &amp; Testimonials
+                  </h3>
+                  <p style={{ fontSize: "0.88rem", color: "var(--text-muted)", marginBottom: "1.25rem", lineHeight: 1.6 }}>
+                    Export student and parent testimonials, star ratings, moderation approval states, and review comments.
+                  </p>
+                  <button type="button" className="btn btn-primary" onClick={exportReviewsCsv}>
+                    📥 Export Reviews (CSV)
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: THEME & BRANDING */}
           {activeTab === "theme" && (() => {
             const THEME_PRESETS = [
               { name: "Calm Navy & Gold (Default)", primary: "#1a3a8f", secondary: "#c9a84c" },
@@ -468,7 +726,7 @@ export default function AdminDashboardPage() {
                 {/* Branding Card */}
                 <div className="card">
                   <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "1rem" }}>
-                    🏢 Site Branding
+                    🏢 Site Branding &amp; Logos
                   </h3>
                   <div className="grid-2" style={{ gap: "1rem" }}>
                     <div className="form-group">
@@ -482,13 +740,13 @@ export default function AdminDashboardPage() {
                       />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Logo Image URL</label>
+                      <label className="form-label">Logo Alt Text (Accessibility)</label>
                       <input
-                        type="url"
+                        type="text"
                         className="form-input"
-                        value={formData.siteLogo}
-                        onChange={(e) => setFormData({ ...formData, siteLogo: e.target.value })}
-                        placeholder="https://example.com/logo.png"
+                        value={formData.siteLogoAlt || ""}
+                        onChange={(e) => setFormData({ ...formData, siteLogoAlt: e.target.value })}
+                        placeholder="Inspiria Careers Official Logo"
                       />
                     </div>
                     <div className="form-group">
@@ -509,6 +767,39 @@ export default function AdminDashboardPage() {
                         value={formData.subTagline}
                         onChange={(e) => setFormData({ ...formData, subTagline: e.target.value })}
                         placeholder="Empowering students to make informed decisions"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid-3" style={{ gap: "1.25rem", marginTop: "1.25rem", borderTop: "1px solid var(--border)", paddingTop: "1.25rem" }}>
+                    <div>
+                      <ImageUploader
+                        label="Primary Site Logo (Light Background) *"
+                        folder="branding"
+                        currentUrl={formData.siteLogo}
+                        onUploadComplete={(url: string) => setFormData({ ...formData, siteLogo: url })}
+                        helperText="PNG, SVG, or WebP. Transparent background recommended."
+                        maxSizeMB={2}
+                      />
+                    </div>
+                    <div>
+                      <ImageUploader
+                        label="Dark Mode Logo (Optional)"
+                        folder="branding"
+                        currentUrl={formData.siteLogoDark}
+                        onUploadComplete={(url: string) => setFormData({ ...formData, siteLogoDark: url })}
+                        helperText="Optimized logo version for dark theme backgrounds."
+                        maxSizeMB={2}
+                      />
+                    </div>
+                    <div>
+                      <ImageUploader
+                        label="Site Favicon (32x32 / SVG)"
+                        folder="branding"
+                        currentUrl={formData.siteFavicon}
+                        onUploadComplete={(url: string) => setFormData({ ...formData, siteFavicon: url })}
+                        helperText="Small browser tab icon. PNG, ICO, or SVG format."
+                        maxSizeMB={1}
                       />
                     </div>
                   </div>
@@ -661,6 +952,24 @@ export default function AdminDashboardPage() {
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Feature Flags Card (Phase 4 Manual QR Payments) */}
+                <div className="card">
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "0.5rem" }}>
+                    💳 Consultation Fees &amp; Manual QR Payments
+                  </h3>
+                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem", lineHeight: 1.5 }}>
+                    Zero third-party payment gateway SDKs or gateway fees. Clients scan the counsellor's official UPI QR code or pay via UPI ID and submit their 12-digit UTR transaction reference number. The counsellor verifies each transaction against their bank statement before confirming appointments.
+                  </p>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.6rem", cursor: "pointer", fontSize: "0.92rem", fontWeight: 600 }}>
+                    <input
+                      type="checkbox"
+                      checked={!!formData.paymentsEnabled}
+                      onChange={(e) => setFormData({ ...formData, paymentsEnabled: e.target.checked })}
+                    />
+                    Enable Consultation Fees &amp; Manual QR Payments (Status: {formData.paymentsEnabled ? "🟢 ACTIVE" : "🔴 OFF / DISABLED BY DEFAULT"})
+                  </label>
                 </div>
 
                 <div style={{ display: "flex", gap: "1rem" }}>

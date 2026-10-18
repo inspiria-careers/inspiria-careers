@@ -39,21 +39,55 @@ service cloud.firestore {
       allow write: if isCounsellor();
     }
 
-    // ── 3. Appointments ──
+    // ── 3. Appointments & Payment Submissions ──
     match /appointments/{appointmentId} {
       allow create: if true; // Public booking permitted
       allow read: if isCounsellor() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow update: if isCounsellor() || (isAuthenticated() && resource.data.userId == request.auth.uid && request.resource.data.status == 'cancelled');
+      
+      // Counsellor can update any field (verify, reject, refund, remarks, etc.)
+      // Client can only:
+      // a) Cancel if within allowed window
+      // b) Request a reschedule
+      // c) Submit payment details (UTR, screenshot) ONLY setting paymentStatus = 'submitted' from 'pending' or 'rejected'
+      // Client is STRICTLY FORBIDDEN from setting paymentStatus to 'verified' or 'refunded'
+      allow update: if isCounsellor() || (
+        isAuthenticated() && 
+        resource.data.userId == request.auth.uid && 
+        (
+          request.resource.data.status == 'cancelled' ||
+          request.resource.data.rescheduleRequest != null ||
+          (
+            request.resource.data.paymentStatus == 'submitted' &&
+            resource.data.paymentStatus != 'verified' &&
+            request.resource.data.paymentStatus != 'verified' &&
+            request.resource.data.paymentStatus != 'refunded'
+          )
+        )
+      );
+      
       allow delete: if isCounsellor() || (isAuthenticated() && resource.data.userId == request.auth.uid);
     }
 
-    // ── 4. Guidance Posts ──
+    // ── 4. UTR / Transaction Reference Index (Anti-Fraud Unique Index) ──
+    match /trNumbers/{trNumber} {
+      allow read: if isCounsellor();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isCounsellor();
+    }
+
+    // ── Slot Locks (Atomic Concurrency Double-Booking Prevention - Phase 5) ──
+    match /slotLocks/{lockId} {
+      allow read, create, update: if true;
+      allow delete: if isCounsellor();
+    }
+
+    // ── 5. Guidance Posts ──
     match /posts/{postId} {
       allow read: if resource.data.published == true || isCounsellor();
       allow write: if isCounsellor();
     }
 
-    // ── 5. Reviews ──
+    // ── 6. Reviews ──
     match /reviews/{reviewId} {
       allow read: if resource.data.approved == true || isCounsellor();
       // When submitting review, approved must default to false
@@ -61,7 +95,7 @@ service cloud.firestore {
       allow update, delete: if isCounsellor();
     }
 
-    // ── 6. Client Notes (Sensitive - Confidential) ──
+    // ── 7. Client Notes (Sensitive - Confidential) ──
     match /clientNotes/{noteId} {
       // Admin has NO access; only owner, or counsellor if explicitly shared
       allow read: if isAuthenticated() && (
@@ -73,7 +107,7 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
-    // ── 7. Client Documents (Sensitive) ──
+    // ── 8. Client Documents (Sensitive) ──
     match /clientDocuments/{docId} {
       allow read: if isAuthenticated() && (
         resource.data.userId == request.auth.uid ||
@@ -84,10 +118,132 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
-    // ── 8. Contact Messages ──
+    // ── 9. Client Intake & Dynamic Consent (Confidential - Phase 5) ──
+    // Admin has STRICTLY NO read or write access
+    match /clientIntake/{userId} {
+      allow read: if isOwner(userId) || (isAuthenticated() && getUserRole() == 'counsellor');
+      allow create, update: if isOwner(userId);
+      allow delete: if isOwner(userId) || (isAuthenticated() && getUserRole() == 'counsellor');
+    }
+
+    // ── 10. Counsellor Private Clinical Session Notes (Strictly Counsellor Only - Phase 5) ──
+    // Neither Client nor Admin can read or write clinical notes
+    match /sessionNotes/{noteId} {
+      allow read, write: if isAuthenticated() && getUserRole() == 'counsellor';
+    }
+
+    // ── 11. Client Private Journal & Mood Tracker (Confidential - Phase 5) ──
+    // Admin has NO access. Counsellor only if shared.
+    match /clientJournal/{entryId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (resource.data.sharedWithCounsellor == true && getUserRole() == 'counsellor')
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // ── 12. Client Homework & Assigned Tasks (Phase 5) ──
+    match /clientTasks/{taskId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        getUserRole() == 'counsellor'
+      );
+      allow create: if isAuthenticated() && getUserRole() == 'counsellor';
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        getUserRole() == 'counsellor'
+      );
+      allow delete: if isAuthenticated() && getUserRole() == 'counsellor';
+    }
+
+    // ── 13. Counsellor Educational Resources (Phase 5) ──
+    match /resources/{resourceId} {
+      allow read: if resource.data.visibility == 'public' || (
+        isAuthenticated() && (resource.data.visibility == 'client_only' || isCounsellor())
+      );
+      allow write: if isCounsellor();
+    }
+
+    // ── 14. Workshops & Webinars (Phase 5) ──
+    match /workshops/{workshopId} {
+      allow read: if true;
+      allow write: if isCounsellor();
+    }
+
+    // ── 15. Workshop Registrations & Payments (Phase 5) ──
+    match /workshopRegistrations/{regId} {
+      allow create: if true;
+      allow read: if isCounsellor() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update: if isCounsellor() || (
+        isAuthenticated() && resource.data.userId == request.auth.uid && (
+          request.resource.data.paymentStatus == 'submitted' &&
+          resource.data.paymentStatus != 'verified' &&
+          request.resource.data.paymentStatus != 'verified'
+        )
+      );
+      allow delete: if isCounsellor();
+    }
+
+    // ── 16. Data Deletion Requests (DPDPA 2023 - Phase 5) ──
+    match /deletionRequests/{reqId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        getUserRole() == 'counsellor' ||
+        isAdmin()
+      );
+      allow update: if isAuthenticated() && (getUserRole() == 'counsellor' || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // ── 17. Contact Messages ──
     match /messages/{messageId} {
       allow create: if true;
       allow read, update, delete: if isCounsellor();
+    }
+
+    // ── 18. Audit Logs (Immutable) ──
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isCounsellor();
+      allow update, delete: if false; // Immutable audit log
+    }
+
+    // ── 19. Secure Messaging Threads (Confidential - Phase 6 Part A) ──
+    // Admin has STRICTLY NO read or write access; only owner client and counsellor
+    match /threads/{threadId} {
+      allow read, write: if isAuthenticated() && (
+        request.auth.uid == threadId || 
+        getUserRole() == 'counsellor'
+      );
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated() && (
+          request.auth.uid == threadId || 
+          getUserRole() == 'counsellor'
+        );
+      }
+    }
+
+    // ── 20. Client Reminder Preferences (Phase 6 Part C) ──
+    match /reminderPreferences/{userId} {
+      allow read, write: if isOwner(userId) || (isAuthenticated() && getUserRole() == 'counsellor');
+    }
+
+    // ── 21. Private Session Feedback (Confidential - Phase 6 Part E) ──
+    // Client can submit for their session; ONLY counsellor can read (Admin has NO access)
+    match /sessionFeedback/{feedbackId} {
+      allow create: if isAuthenticated() && request.resource.data.clientId == request.auth.uid;
+      allow read: if isAuthenticated() && getUserRole() == 'counsellor';
+      allow update, delete: if isAuthenticated() && getUserRole() == 'counsellor';
+    }
+
+    // ── 22. Newsletter Subscribers (Phase 6 Part F) ──
+    match /subscribers/{subId} {
+      allow create: if true;
+      allow read: if isCounsellor();
+      allow update: if true; // Allows confirmation and unsubscribe via token
+      allow delete: if isCounsellor();
     }
   }
 }

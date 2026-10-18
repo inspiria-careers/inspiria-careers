@@ -29,8 +29,8 @@ export default function SignupPage() {
       setErrorMsg(lang === "hi" ? "कृपया ईमेल और पासवर्ड दर्ज करें।" : "Please enter email and password.");
       return;
     }
-    if (password.length < 6) {
-      setErrorMsg(lang === "hi" ? "पासवर्ड कम से कम 6 अक्षरों का होना चाहिए।" : "Password must be at least 6 characters.");
+    if (password.length < 8) {
+      setErrorMsg(lang === "hi" ? "सुरक्षा के लिए पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।" : "For your security, password must be at least 8 characters long.");
       return;
     }
     if (password !== confirmPassword) {

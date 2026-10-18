@@ -23,8 +23,11 @@ This document maps out the system architecture, routing, component hierarchy, da
 | `/forgot-password` | Public | Secure password reset email trigger | Firebase Auth |
 | `/dashboard` | Protected | Smart dispatcher routing user to `/dashboard/{role}` | `AuthContext` |
 | `/dashboard/admin` | Admin Only | User management, role elevation, theme presets, master settings | `users`, `siteContent/settings` |
-| `/dashboard/counsellor`| Counsellor / Admin | Profile editor, services, gallery, posts editor, appointment manager | `siteContent/settings`, `posts`, `appointments` |
-| `/dashboard/client` | Client / All | Scheduled appointments, private notes/documents, feedback submission | `appointments`, `clientNotes`, `clientDocuments`, `reviews` |
+| `/dashboard/counsellor`| Counsellor / Admin | Profile editor, services, gallery, posts editor, appointment manager, messaging, feedback, subscribers | `siteContent/settings`, `posts`, `appointments`, `threads`, `sessionFeedback`, `subscribers` |
+| `/dashboard/client` | Client / All | Scheduled appointments, private notes/documents, feedback submission, secure messaging, reminder preferences | `appointments`, `clientNotes`, `clientDocuments`, `reviews`, `threads`, `reminderPreferences` |
+| `/api/newsletter/subscribe` | Public (POST) | Double opt-in newsletter registration | `subscribers` |
+| `/api/newsletter/confirm` | Public (GET) | Cryptographic confirmation token verification | `subscribers` |
+| `/api/newsletter/unsubscribe` | Public (GET) | One-click instant unsubscription link handler | `subscribers` |
 
 ---
 
