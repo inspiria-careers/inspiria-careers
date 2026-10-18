@@ -856,7 +856,10 @@ export default function CounsellorDashboardPage() {
   // Add & Save Gallery Item
   const handleAddGalleryItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newGalleryItem.url.trim()) return;
+    if (!newGalleryItem.url.trim()) {
+      alert("Please upload a photo or enter a video link first.");
+      return;
+    }
 
     const item: GalleryItem = {
       id: "gal_" + Date.now(),
@@ -1501,6 +1504,64 @@ export default function CounsellorDashboardPage() {
               )}
 
               <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                {/* Website Branding & Logo */}
+                <div className="card">
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "0.5rem" }}>
+                    🏢 Website Branding &amp; Logo
+                  </h3>
+                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+                    Upload your official institution or counselling practice logo. This logo appears in the top navigation bar, footer, and receipts.
+                  </p>
+
+                  <div className="grid-2" style={{ gap: "1rem" }}>
+                    <div className="form-group">
+                      <label className="form-label">Site / Practice Name</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={profileForm.siteName || ""}
+                        onChange={(e) => setProfileForm({ ...profileForm, siteName: e.target.value })}
+                        placeholder="Inspiria Careers"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Tagline</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={profileForm.tagline || ""}
+                        onChange={(e) => setProfileForm({ ...profileForm, tagline: e.target.value })}
+                        placeholder="Expert Career & Academic Guidance"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid-2" style={{ gap: "1.25rem", marginTop: "1rem" }}>
+                    <div>
+                      <ImageUploader
+                        label="Official Site Logo *"
+                        folder="branding"
+                        currentUrl={profileForm.siteLogo}
+                        onUploadComplete={(url: string) => setProfileForm({ ...profileForm, siteLogo: url })}
+                        onRemove={() => setProfileForm({ ...profileForm, siteLogo: "" })}
+                        helperText="Upload official logo (PNG, SVG, or WebP). Max 2 MB, auto-compressed."
+                        maxSizeMB={2}
+                      />
+                    </div>
+                    <div>
+                      <ImageUploader
+                        label="Dark Theme Logo (Optional)"
+                        folder="branding"
+                        currentUrl={profileForm.siteLogoDark}
+                        onUploadComplete={(url: string) => setProfileForm({ ...profileForm, siteLogoDark: url })}
+                        onRemove={() => setProfileForm({ ...profileForm, siteLogoDark: "" })}
+                        helperText="Optional logo variation for dark backgrounds."
+                        maxSizeMB={2}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="card">
                   <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--brand-primary)", marginBottom: "1rem" }}>
                     Personal Details
@@ -2000,17 +2061,31 @@ export default function CounsellorDashboardPage() {
                   </div>
                 </div>
 
-                <div className="form-group" style={{ marginTop: "1rem" }}>
-                  <label className="form-label">Direct Media URL *</label>
-                  <input
-                    type="url"
-                    className="form-input"
-                    value={newGalleryItem.url}
-                    onChange={(e) => setNewGalleryItem({ ...newGalleryItem, url: e.target.value })}
-                    placeholder="https://example.com/session-photo.jpg"
-                    required
-                  />
-                </div>
+                {newGalleryItem.type === "photo" ? (
+                  <div className="form-group" style={{ marginTop: "1rem" }}>
+                    <ImageUploader
+                      label="Upload Gallery Photo *"
+                      folder="gallery"
+                      currentUrl={newGalleryItem.url}
+                      onUploadComplete={(url: string) => setNewGalleryItem({ ...newGalleryItem, url })}
+                      onRemove={() => setNewGalleryItem({ ...newGalleryItem, url: "" })}
+                      helperText="Click to browse or drag & drop a photo from your computer or phone. Max 5 MB, auto-compressed."
+                      maxSizeMB={5}
+                    />
+                  </div>
+                ) : (
+                  <div className="form-group" style={{ marginTop: "1rem" }}>
+                    <label className="form-label">Video Embed or Stream Link (YouTube / Vimeo / MP4) *</label>
+                    <input
+                      type="url"
+                      className="form-input"
+                      value={newGalleryItem.url}
+                      onChange={(e) => setNewGalleryItem({ ...newGalleryItem, url: e.target.value })}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      required
+                    />
+                  </div>
+                )}
 
                 <div className="form-group" style={{ marginTop: "1rem" }}>
                   <label className="form-label">Caption / Description</label>
@@ -2147,13 +2222,14 @@ export default function CounsellorDashboardPage() {
 
                 <div className="grid-2" style={{ gap: "1rem", marginTop: "1rem" }}>
                   <div className="form-group">
-                    <label className="form-label">Cover Image URL</label>
-                    <input
-                      type="url"
-                      className="form-input"
-                      value={newPost.coverImage}
-                      onChange={(e) => setNewPost({ ...newPost, coverImage: e.target.value })}
-                      placeholder="https://images.unsplash.com/..."
+                    <ImageUploader
+                      label="Article Cover Photo (Optional)"
+                      folder="posts"
+                      currentUrl={newPost.coverImage}
+                      onUploadComplete={(url: string) => setNewPost({ ...newPost, coverImage: url })}
+                      onRemove={() => setNewPost({ ...newPost, coverImage: "" })}
+                      helperText="Upload a cover photo from your device. Max 3 MB, auto-compressed."
+                      maxSizeMB={3}
                     />
                   </div>
                   <div className="form-group">
