@@ -23,6 +23,9 @@ All notable changes to this project will be documented in this file.
   - Added direct device file uploader in Counsellor Dashboard (`/dashboard/counsellor → Resource Hub`) allowing counselors to upload PDFs, worksheets, audio, or video files up to 10MB to Cloud Storage alongside external links.
 - **Client & Counsellor Messaging Attachments**:
   - Documented and refined peer-to-peer asynchronous messaging attachment exchange (PDF, JPG, PNG up to 5MB) via Cloud Storage with private per-client isolation.
+- **Fixed Firestore setDoc Undefined Field in Intake Form**:
+  - Resolved `Unsupported field value: undefined (parentName)` error in `IntakeModal.tsx` by replacing `undefined` with `null` for adult clients (18+), ensuring seamless intake submission.
+  - Added dedicated QR code card with scan-to-pay preview on `/book` success screen.
 
 ## [Phase 7.0.0] - 2026-10-18
 

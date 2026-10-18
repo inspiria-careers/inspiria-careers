@@ -17,9 +17,9 @@ export interface ClientIntake {
   emergencyContactPhone: string;
   preferredLanguage: PreferredLanguage;
   // Under-18 safeguards
-  parentName?: string;
-  parentPhone?: string;
-  parentConsentConfirmed?: boolean;
+  parentName?: string | null;
+  parentPhone?: string | null;
+  parentConsentConfirmed?: boolean | null;
   // Versioned Informed Consent
   consentAccepted: boolean;
   consentVersion: number;

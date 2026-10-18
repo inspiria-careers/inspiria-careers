@@ -33,6 +33,25 @@ export default function BookAppointmentPage() {
   const [notes, setNotes] = useState("");
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
 
+  const selectedService = useMemo(
+    () => services.find((s) => s.id === serviceId),
+    [services, serviceId]
+  );
+
+  const calculatedFee = useMemo(() => {
+    if (selectedService?.fee !== undefined && selectedService?.fee !== null && Number(selectedService.fee) > 0) {
+      return Number(selectedService.fee);
+    }
+    return profile.defaultConsultationFee !== undefined && Number(profile.defaultConsultationFee) > 0
+      ? Number(profile.defaultConsultationFee)
+      : 0;
+  }, [selectedService, profile.defaultConsultationFee]);
+
+  const requiresPayment = useMemo(
+    () => profile.paymentsEnabled && calculatedFee > 0,
+    [profile.paymentsEnabled, calculatedFee]
+  );
+
   // Intake & Consent state
   const [intakeCompleted, setIntakeCompleted] = useState<boolean | null>(null);
   const [showIntakeModal, setShowIntakeModal] = useState(false);
@@ -370,6 +389,45 @@ export default function BookAppointmentPage() {
                   )}
                 </p>
 
+                {requiresPayment && calculatedFee > 0 && (
+                  <div
+                    style={{
+                      margin: "1.25rem auto 1.5rem",
+                      padding: "1.25rem",
+                      background: "var(--surface-2)",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                      maxWidth: "480px",
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, fontSize: "1rem", color: "var(--brand-primary)", marginBottom: "0.35rem" }}>
+                      💳 {lang === "hi" ? "परामर्श शुल्क:" : "Consultation Fee:"} ₹{calculatedFee}
+                    </div>
+                    {profile.paymentQr ? (
+                      <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <img
+                          src={profile.paymentQr}
+                          alt="Payment QR Code"
+                          style={{ width: 140, height: 140, objectFit: "contain", borderRadius: 8, border: "1px solid var(--border)", background: "#fff" }}
+                        />
+                        <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
+                          {lang === "hi" ? "QR स्कैन करके भुगतान करें" : "Scan to Pay via UPI"}
+                        </span>
+                      </div>
+                    ) : null}
+                    {profile.upiId ? (
+                      <div style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
+                        <strong>UPI ID:</strong> <code>{profile.upiId}</code> {profile.payeeName && `(${profile.payeeName})`}
+                      </div>
+                    ) : null}
+                    <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "0.5rem" }}>
+                      {lang === "hi"
+                        ? "भुगतान के बाद डैशबोर्ड में 12-अंकीय UTR नंबर दर्ज करें ताकि काउंसलर अपॉइंटमेंट की पुष्टि कर सकें।"
+                        : "After payment, submit your 12-digit UTR in your dashboard to confirm your appointment."}
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
                   {user ? (
                     <Link href="/dashboard/client" className="btn btn-primary">
@@ -571,7 +629,7 @@ export default function BookAppointmentPage() {
 
                 {(() => {
                   const sel = services.find((s) => s.id === serviceId);
-                  const fee = sel?.fee ? Number(sel.fee) : 0;
+                  const fee = sel?.fee ? Number(sel.fee) : (profile.defaultConsultationFee ? Number(profile.defaultConsultationFee) : 0);
                   if (fee > 0) {
                     return (
                       <div

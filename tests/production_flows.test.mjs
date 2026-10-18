@@ -352,6 +352,19 @@ describe("Phase 5: Clinical Intake, Privacy, Atomic Scheduling & Insights Tests"
       parentConsentConfirmed: true,
     };
     assert.deepEqual(validateIntake(minorValid), { valid: true });
+
+    // Firestore safety: Ensure adult intake payload contains null, never undefined
+    const isUnder18 = adultIntake.ageGroup === "under_18";
+    const payloadParentName = isUnder18 ? (adultIntake.parentName || null) : null;
+    const payloadParentPhone = isUnder18 ? (adultIntake.parentPhone || null) : null;
+    const payloadConsent = isUnder18 ? !!adultIntake.parentConsentConfirmed : false;
+
+    assert.notEqual(payloadParentName, undefined, "parentName must not be undefined for Firestore");
+    assert.notEqual(payloadParentPhone, undefined, "parentPhone must not be undefined for Firestore");
+    assert.notEqual(payloadConsent, undefined, "parentConsentConfirmed must not be undefined");
+    assert.equal(payloadParentName, null);
+    assert.equal(payloadParentPhone, null);
+    assert.equal(payloadConsent, false);
   });
 
   // 2. Versioned Informed Consent Guard
