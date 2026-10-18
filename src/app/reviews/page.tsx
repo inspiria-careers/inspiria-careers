@@ -154,7 +154,7 @@ function formatDate(createdAt: any, lang: string) {
 
 export default function ReviewsPage() {
   const { user } = useAuth();
-  const { lang } = useSite();
+  const { profile, lang } = useSite();
 
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -162,6 +162,7 @@ export default function ReviewsPage() {
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const [filterRating, setFilterRating] = useState<number | null>(null);
+  const [openFaqId, setOpenFaqId] = useState<string | null>("faq-rev-1");
 
   useEffect(() => {
     async function loadReviews() {
@@ -273,6 +274,26 @@ export default function ReviewsPage() {
                 ? "हमारे प्रमाणित परामर्शदाता से मार्गदर्शन प्राप्त करने वाले छात्रों की सच्ची समीक्षाएं।"
                 : "Real feedback from students and parents guided by our educational and career mentors."}
             </p>
+            <div style={{ display: "flex", justifyContent: "center", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap" }}>
+              <a
+                href="#reviews-faq"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
+                  padding: "0.35rem 0.95rem",
+                  borderRadius: "20px",
+                  background: "var(--surface-2)",
+                  border: "1px solid var(--border)",
+                  fontSize: "0.82rem",
+                  color: "var(--brand-primary)",
+                  fontWeight: 600,
+                  textDecoration: "none",
+                }}
+              >
+                ❓ {lang === "hi" ? "अक्सर पूछे जाने वाले प्रश्न (FAQ)" : "Counselling & Review FAQs"}
+              </a>
+            </div>
           </div>
 
           {/* Stats Bar */}
@@ -675,6 +696,186 @@ export default function ReviewsPage() {
               </div>
             </>
           )}
+
+          {/* ── FAQ Section on Reviews Page ── */}
+          <section
+            id="reviews-faq"
+            style={{
+              marginTop: "4.5rem",
+              paddingTop: "3rem",
+              borderTop: "1px solid var(--border)",
+            }}
+          >
+            <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
+              <span className="section-tag">{t("faqs", lang)}</span>
+              <h2
+                style={{
+                  fontSize: "clamp(1.5rem, 3vw, 2rem)",
+                  fontWeight: 800,
+                  color: "var(--text)",
+                  marginTop: "0.5rem",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                {lang === "hi" ? (
+                  <>समीक्षा एवं परामर्श से जुड़े <span>सामान्य प्रश्न</span></>
+                ) : (
+                  <>Frequently Asked <span>Questions</span></>
+                )}
+              </h2>
+              <p
+                style={{
+                  color: "var(--text-muted)",
+                  fontSize: "0.95rem",
+                  maxWidth: "600px",
+                  margin: "0 auto",
+                }}
+              >
+                {lang === "hi"
+                  ? "परामर्श सत्र, समीक्षा प्रक्रिया और छात्र गोपनीयता से जुड़े सभी सामान्य प्रश्नों के उत्तर।"
+                  : "Common questions regarding counselling sessions, confidentiality, and our verified review process."}
+              </p>
+            </div>
+
+            {/* Accordion List */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.85rem",
+                maxWidth: "840px",
+                margin: "0 auto",
+              }}
+            >
+              {[
+                {
+                  id: "faq-rev-1",
+                  questionEn: "Can I submit a review anonymously to protect my privacy?",
+                  questionHi: "क्या मैं अपनी गोपनीयता बनाए रखने के लिए अनाम (Anonymous) समीक्षा दे सकता हूँ?",
+                  answerEn: "Yes, absolutely! When submitting your review from your Client Dashboard, you have three options: display your Full Name, display First Name only, or choose Anonymous. Your private clinical notes and personal discussions are never shared.",
+                  answerHi: "हाँ, बिल्कुल! अपने क्लाइंट डैशबोर्ड से समीक्षा सबमिट करते समय आपके पास तीन विकल्प होते हैं: पूरा नाम दिखाएं, केवल पहला नाम दिखाएं, या 'अनाम' चुनें। आपके निजी परामर्श नोट्स कभी सार्वजनिक नहीं किए जाते हैं।",
+                },
+                {
+                  id: "faq-rev-2",
+                  questionEn: "How are reviews verified before being published?",
+                  questionHi: "समीक्षाएं प्रकाशित होने से पहले कैसे सत्यापित की जाती हैं?",
+                  answerEn: "Only registered clients who have scheduled sessions with our certified counsellor can submit reviews. Each review is checked to ensure authentic student feedback and eliminate spam.",
+                  answerHi: "केवल वही छात्र या अभिभावक समीक्षा दे सकते हैं जिन्होंने हमारे प्रमाणित काउंसलर के साथ सत्र लिया हो। स्पैम को रोकने और प्रामाणिकता सुनिश्चित करने के लिए समीक्षा का संक्षेप सत्यापन किया जाता है।",
+                },
+                {
+                  id: "faq-rev-3",
+                  questionEn: "Is my counselling session completely confidential?",
+                  questionHi: "क्या मेरा परामर्श सत्र पूरी तरह से गोपनीय रहता है?",
+                  answerEn: "Yes. All personal disclosures, session notes, and shared documents are strictly protected with encrypted, least-privilege security controls. Neither admin staff nor external parties have access to clinical notes.",
+                  answerHi: "हाँ। आपकी सभी व्यक्तिगत बातें, सत्र नोट्स और साझा दस्तावेज़ सुरक्षित एन्क्रिप्शन के साथ सुरक्षित रहते हैं। व्यवस्थापकों (एडमिन) या किसी भी बाहरी व्यक्ति को आपके क्लिनिकल नोट्स देखने की अनुमति नहीं है।",
+                },
+                {
+                  id: "faq-rev-4",
+                  questionEn: "How do I book or reschedule a session after reading reviews?",
+                  questionHi: "समीक्षाएं पढ़ने के बाद मैं सत्र कैसे बुक या रीशेड्यूल कर सकता हूँ?",
+                  answerEn: "Click 'Schedule a Consultation' or visit our Booking page, select your preferred date, working time slot, and mode (Online Video or In-Person). You can reschedule anytime up to 24 hours in advance from your dashboard.",
+                  answerHi: "सत्र बुक करने के लिए 'अपॉइंटमेंट बुक करें' बटन दबाएं, पसंदीदा तारीख, समय स्लॉट और मोड (ऑनलाइन वीडियो या व्यक्तिगत) चुनें। आप अपने डैशबोर्ड से 24 घंटे पहले तक कभी भी रीशेड्यूल कर सकते हैं।",
+                },
+                ...(profile.faqList || []).filter(
+                  (f) => !["faq-rev-1", "faq-rev-2", "faq-rev-3", "faq-rev-4"].includes(f.id)
+                ),
+              ].map((faq) => {
+                const isOpen = openFaqId === faq.id;
+                const question = lang === "hi" ? faq.questionHi : faq.questionEn;
+                const answer = lang === "hi" ? faq.answerHi : faq.answerEn;
+
+                return (
+                  <div
+                    key={faq.id}
+                    className="card"
+                    style={{
+                      padding: 0,
+                      overflow: "hidden",
+                      border: isOpen
+                        ? "1.5px solid var(--brand-primary)"
+                        : "1px solid var(--border)",
+                      transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                      background: "var(--surface)",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaqId(isOpen ? null : faq.id)}
+                      aria-expanded={isOpen}
+                      style={{
+                        width: "100%",
+                        padding: "1.15rem 1.4rem",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        background: isOpen ? "var(--surface-2)" : "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        gap: "1rem",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          fontSize: "0.98rem",
+                          color: isOpen ? "var(--brand-primary)" : "var(--text)",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {question}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "1.2rem",
+                          color: "var(--brand-primary)",
+                          transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                          transition: "transform 0.2s ease",
+                          display: "inline-block",
+                          lineHeight: 1,
+                        }}
+                      >
+                        ▾
+                      </span>
+                    </button>
+
+                    {isOpen && (
+                      <div
+                        style={{
+                          padding: "1.15rem 1.4rem 1.4rem",
+                          fontSize: "0.92rem",
+                          lineHeight: 1.75,
+                          color: "var(--text)",
+                          borderTop: "1px solid var(--border)",
+                          background: "var(--surface)",
+                        }}
+                      >
+                        {answer}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ textAlign: "center", marginTop: "2rem" }}>
+              <Link
+                href="/faq"
+                className="btn btn-outline btn-sm"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
+                  color: "var(--brand-primary)",
+                  borderColor: "var(--brand-primary)",
+                }}
+              >
+                {lang === "hi"
+                  ? "सभी विस्तृत प्रश्नोत्तर देखें (View All FAQs) →"
+                  : "Explore All Comprehensive FAQs →"}
+              </Link>
+            </div>
+          </section>
 
           {/* CTA Footer: Book Appointment & Share Experience */}
           <div
