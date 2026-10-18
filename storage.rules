@@ -33,9 +33,9 @@ service firebase.storage {
       allow delete: if isOwner(userId);
     }
 
-    // Payment Screenshots (Protected: Owner & Counsellor/Admin only)
+    // Payment Screenshots (Protected: Owner only)
     match /payments/{userId}/{fileName} {
-      allow read: if isOwner(userId) || isAuthenticated();
+      allow read: if isOwner(userId);
       allow write: if isOwner(userId) && isValidFileSize() && isValidMimeType();
       allow delete: if isOwner(userId);
     }

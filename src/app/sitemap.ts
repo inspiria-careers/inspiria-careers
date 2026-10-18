@@ -13,6 +13,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/reviews",
     "/posts",
     "/book",
+    "/workshops",
+    "/resources",
+    "/faq",
+    "/emergency",
     "/privacy",
   ];
 
