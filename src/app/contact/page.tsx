@@ -5,6 +5,7 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
+import { PhoneIcon, WhatsAppIcon, MailIcon, ClockIcon, MapPinIcon, CalendarIcon } from "@/components/Icons";
 
 export default function ContactPage() {
   const { profile, lang } = useSite();
@@ -116,7 +117,9 @@ export default function ContactPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem", fontSize: "0.92rem" }}>
                 {profile.phone && (
                   <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-                    <span style={{ fontSize: "1.2rem" }}>📞</span>
+                    <span style={{ color: "var(--brand-primary)", marginTop: "0.15rem" }}>
+                      <PhoneIcon size={20} />
+                    </span>
                     <div>
                       <div style={{ fontWeight: 600, color: "var(--text-muted)", fontSize: "0.8rem" }}>{t("phone", lang)}</div>
                       <a href={`tel:${profile.phone}`} style={{ fontWeight: 600 }}>{profile.phone}</a>
@@ -126,7 +129,9 @@ export default function ContactPage() {
 
                 {profile.whatsapp && (
                   <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-                    <span style={{ fontSize: "1.2rem", color: "#25D366" }}>💬</span>
+                    <span style={{ color: "#25D366", marginTop: "0.15rem" }}>
+                      <WhatsAppIcon size={20} />
+                    </span>
                     <div>
                       <div style={{ fontWeight: 600, color: "var(--text-muted)", fontSize: "0.8rem" }}>WhatsApp</div>
                       {whatsappNum ? (
@@ -135,8 +140,9 @@ export default function ContactPage() {
                           target="_blank"
                           rel="noreferrer"
                           className="btn btn-sm"
-                          style={{ background: "#25D366", color: "#fff", marginTop: "0.25rem" }}
+                          style={{ background: "#25D366", color: "#fff", marginTop: "0.25rem", display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
                         >
+                          <WhatsAppIcon size={16} />
                           Chat on WhatsApp
                         </a>
                       ) : (
@@ -148,7 +154,9 @@ export default function ContactPage() {
 
                 {profile.email && (
                   <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-                    <span style={{ fontSize: "1.2rem" }}>✉️</span>
+                    <span style={{ color: "var(--brand-primary)", marginTop: "0.15rem" }}>
+                      <MailIcon size={20} />
+                    </span>
                     <div>
                       <div style={{ fontWeight: 600, color: "var(--text-muted)", fontSize: "0.8rem" }}>{t("email", lang)}</div>
                       <a href={`mailto:${profile.email}`} style={{ fontWeight: 600 }}>{profile.email}</a>
@@ -158,7 +166,9 @@ export default function ContactPage() {
 
                 {profile.officeHours && (
                   <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-                    <span style={{ fontSize: "1.2rem" }}>🕒</span>
+                    <span style={{ color: "var(--brand-primary)", marginTop: "0.15rem" }}>
+                      <ClockIcon size={20} />
+                    </span>
                     <div>
                       <div style={{ fontWeight: 600, color: "var(--text-muted)", fontSize: "0.8rem" }}>
                         {lang === "hi" ? "कार्यालय समय" : "Office Hours"}
@@ -170,7 +180,9 @@ export default function ContactPage() {
 
                 {profile.address && (
                   <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-                    <span style={{ fontSize: "1.2rem" }}>📍</span>
+                    <span style={{ color: "var(--brand-primary)", marginTop: "0.15rem" }}>
+                      <MapPinIcon size={20} />
+                    </span>
                     <div>
                       <div style={{ fontWeight: 600, color: "var(--text-muted)", fontSize: "0.8rem" }}>
                         {lang === "hi" ? "पता" : "Address"}
@@ -189,8 +201,9 @@ export default function ContactPage() {
 
               {/* Book Appointment CTA */}
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: "1.25rem" }}>
-                <Link href="/book" className="btn btn-primary btn-full">
-                  📅 {t("bookAppointment", lang)}
+                <Link href="/book" className="btn btn-primary btn-full" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+                  <CalendarIcon size={18} />
+                  {t("bookAppointment", lang)}
                 </Link>
               </div>
             </div>

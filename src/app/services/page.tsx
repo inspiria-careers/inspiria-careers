@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
+import { CalendarIcon, PhoneIcon, SparklesIcon, DynamicVectorIcon } from "@/components/Icons";
 
 export default function ServicesPage() {
   const { services, profile, lang } = useSite();
@@ -30,7 +31,9 @@ export default function ServicesPage() {
             <h2 id="services-list-heading" className="sr-only">Services list</h2>
             {services.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-state-icon">🌟</div>
+                <div className="empty-state-icon" style={{ display: "flex", justifyContent: "center", color: "var(--brand-secondary)" }}>
+                  <SparklesIcon size={40} />
+                </div>
                 <div className="empty-state-title">{t("detailsComingSoon", lang)}</div>
                 <p className="empty-state-desc" style={{ marginTop: ".5rem" }}>
                   {lang === "hi"
@@ -45,7 +48,9 @@ export default function ServicesPage() {
               <div className="grid-3">
                 {services.map((s) => (
                   <article key={s.id} className="card card-accent" aria-label={s.title}>
-                    {s.icon && <div style={{ fontSize: "2.25rem", marginBottom: ".85rem" }}>{s.icon}</div>}
+                    <div style={{ marginBottom: ".85rem", color: "var(--brand-primary)" }}>
+                      <DynamicVectorIcon name={s.icon} size={40} />
+                    </div>
                     <h2 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: ".6rem", color: "var(--text)" }}>{s.title}</h2>
                     <p style={{ color: "var(--text-muted)", fontSize: ".9rem", lineHeight: 1.75 }}>{s.description}</p>
                   </article>
@@ -55,8 +60,9 @@ export default function ServicesPage() {
 
             {services.length > 0 && (
               <div style={{ textAlign: "center", marginTop: "3rem" }}>
-                <Link href="/contact" className="btn btn-primary btn-lg" id="services-book-btn">
-                  📅 {t("bookAppointment", lang)}
+                <Link href="/contact" className="btn btn-primary btn-lg" id="services-book-btn" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                  <CalendarIcon size={18} />
+                  {t("bookAppointment", lang)}
                 </Link>
               </div>
             )}
@@ -75,8 +81,9 @@ export default function ServicesPage() {
                 : "Reach out to us directly. We're here to help you navigate your path."}
             </p>
             {profile.phone && (
-              <a href={`tel:${profile.phone}`} className="btn btn-secondary btn-lg" style={{ marginRight: "1rem" }} id="services-phone-btn">
-                📞 {profile.phone}
+              <a href={`tel:${profile.phone}`} className="btn btn-secondary btn-lg" style={{ marginRight: "1rem", display: "inline-flex", alignItems: "center", gap: "0.5rem" }} id="services-phone-btn">
+                <PhoneIcon size={18} />
+                {profile.phone}
               </a>
             )}
             <Link href="/contact" className="btn btn-ghost btn-lg" style={{ color: "#fff", borderColor: "rgba(255,255,255,.4)" }} id="services-contact-btn">

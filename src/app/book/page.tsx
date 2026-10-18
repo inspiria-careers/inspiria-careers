@@ -18,6 +18,7 @@ import { t } from "@/translations";
 import { getAvailableSlotsForDate } from "@/lib/slotUtils";
 import IntakeModal from "@/components/IntakeModal";
 import type { ClientIntake } from "@/types";
+import { CalendarIcon, CreditCardIcon, LockIcon, CertificateIcon } from "@/components/Icons";
 
 export default function BookAppointmentPage() {
   const { user } = useAuth();
@@ -400,8 +401,9 @@ export default function BookAppointmentPage() {
                       maxWidth: "480px",
                     }}
                   >
-                    <div style={{ fontWeight: 700, fontSize: "1rem", color: "var(--brand-primary)", marginBottom: "0.35rem" }}>
-                      💳 {lang === "hi" ? "परामर्श शुल्क:" : "Consultation Fee:"} ₹{calculatedFee}
+                    <div style={{ fontWeight: 700, fontSize: "1rem", color: "var(--brand-primary)", marginBottom: "0.35rem", display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+                      <CreditCardIcon size={18} />
+                      {lang === "hi" ? "परामर्श शुल्क:" : "Consultation Fee:"} ₹{calculatedFee}
                     </div>
                     {profile.paymentQr ? (
                       <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -644,8 +646,9 @@ export default function BookAppointmentPage() {
                           gap: "0.35rem",
                         }}
                       >
-                        <div style={{ fontWeight: 600, color: "var(--brand-primary)" }}>
-                          💳 {lang === "hi" ? "परामर्श शुल्क:" : "Consultation Fee:"} ₹{fee}
+                        <div style={{ fontWeight: 600, color: "var(--brand-primary)", display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+                          <CreditCardIcon size={16} />
+                          {lang === "hi" ? "परामर्श शुल्क:" : "Consultation Fee:"} ₹{fee}
                         </div>
                         <div style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
                           {lang === "hi"
@@ -653,8 +656,9 @@ export default function BookAppointmentPage() {
                             : "After booking, you will see the payment QR code & UPI options in your dashboard. Session will be confirmed upon payment verification."}
                         </div>
                         {profile.refundPolicyText && (
-                          <div style={{ color: "var(--text-muted)", fontSize: "0.78rem", borderTop: "1px dashed var(--border)", paddingTop: "0.35rem", marginTop: "0.25rem" }}>
-                            📜 <strong>{lang === "hi" ? "रद्दकरण / रिफंड नीति:" : "Cancellation & Refund Policy:"}</strong> {profile.refundPolicyText}
+                          <div style={{ color: "var(--text-muted)", fontSize: "0.78rem", borderTop: "1px dashed var(--border)", paddingTop: "0.35rem", marginTop: "0.25rem", display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
+                            <CertificateIcon size={14} />
+                            <span><strong>{lang === "hi" ? "रद्दकरण / रिफंड नीति:" : "Cancellation & Refund Policy:"}</strong> {profile.refundPolicyText}</span>
                           </div>
                         )}
                       </div>
@@ -664,15 +668,24 @@ export default function BookAppointmentPage() {
                 })()}
 
                 <div style={{ borderTop: "1px solid var(--border)", paddingTop: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
-                  <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                    🔒 {t("confidentiality", lang)}
+                  <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
+                    <LockIcon size={14} />
+                    {t("confidentiality", lang)}
                   </span>
                   <button
                     type="submit"
                     className="btn btn-primary btn-lg"
                     disabled={status === "submitting"}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
                   >
-                    {status === "submitting" ? t("loading", lang) : `📅 ${t("bookAppointment", lang)}`}
+                    {status === "submitting" ? (
+                      t("loading", lang)
+                    ) : (
+                      <>
+                        <CalendarIcon size={18} />
+                        {t("bookAppointment", lang)}
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

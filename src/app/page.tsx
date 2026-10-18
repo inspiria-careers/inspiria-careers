@@ -2,11 +2,14 @@
 import Link from "next/link";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
+import { CalendarIcon, SparklesIcon, DynamicVectorIcon } from "@/components/Icons";
 
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="empty-state">
-      <div className="empty-state-icon">✨</div>
+      <div className="empty-state-icon" style={{ display: "flex", justifyContent: "center", color: "var(--brand-secondary)" }}>
+        <SparklesIcon size={40} />
+      </div>
       <p className="empty-state-desc">{message}</p>
     </div>
   );
@@ -48,8 +51,9 @@ export default function HomePage() {
             {profile.subTagline || t("detailsComingSoon", lang)}
           </p>
           <div className="hero-actions">
-            <Link href="/contact" className="btn btn-secondary btn-lg" id="hero-book-btn">
-              📅 {t("bookAppointment", lang)}
+            <Link href="/contact" className="btn btn-secondary btn-lg" id="hero-book-btn" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+              <CalendarIcon size={18} />
+              {t("bookAppointment", lang)}
             </Link>
             <Link href="/about" className="btn btn-ghost btn-lg" style={{ color: "#fff", borderColor: "rgba(255,255,255,.45)" }}>
               {t("about", lang)} →
@@ -100,7 +104,9 @@ export default function HomePage() {
             <div className="grid-3">
               {services.map((s) => (
                 <div key={s.id} className="card card-accent">
-                  {s.icon && <div style={{ fontSize: "2rem", marginBottom: ".75rem" }}>{s.icon}</div>}
+                  <div style={{ marginBottom: ".75rem", color: "var(--brand-primary)" }}>
+                    <DynamicVectorIcon name={s.icon} size={36} />
+                  </div>
                   <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: ".5rem" }}>{s.title}</h3>
                   <p style={{ color: "var(--text-muted)", fontSize: ".9rem", lineHeight: 1.7 }}>{s.description}</p>
                 </div>
@@ -109,8 +115,9 @@ export default function HomePage() {
           )}
 
           <div style={{ textAlign: "center", marginTop: "2.5rem" }}>
-            <Link href="/contact" className="btn btn-primary" id="services-book-btn">
-              📅 {t("bookAppointment", lang)}
+            <Link href="/contact" className="btn btn-primary" id="services-book-btn" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+              <CalendarIcon size={18} />
+              {t("bookAppointment", lang)}
             </Link>
           </div>
         </div>
@@ -196,8 +203,9 @@ export default function HomePage() {
               ? "हमारे अनुभवी परामर्शदाता के साथ एक सत्र बुक करें और अपने लक्ष्यों की ओर पहला कदम उठाएं।"
               : "Book a session with our experienced counsellor and take the first step towards your goals."}
           </p>
-          <Link href="/book" className="btn btn-secondary btn-lg" id="cta-book-btn">
-            📅 {t("bookAppointment", lang)}
+          <Link href="/book" className="btn btn-secondary btn-lg" id="cta-book-btn" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+            <CalendarIcon size={18} />
+            {t("bookAppointment", lang)}
           </Link>
         </div>
       </section>

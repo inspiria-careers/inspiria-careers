@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
+import { WrenchIcon, MenuIcon, CloseIcon, KeyIcon } from "@/components/Icons";
 
 const NAV_LINKS = [
   { href: "/", label: "home" },
@@ -58,7 +59,10 @@ export default function Navbar() {
             zIndex: 1001,
           }}
         >
-          <span>🛠️ {profile.maintenanceNoticeText || (lang === "hi" ? "साइट मेंटेनेंस चल रहा है — नई अपॉइंटमेंट बुकिंग अस्थायी रूप से रोकी गई है।" : "Scheduled Maintenance in Progress — New appointment bookings are temporarily paused.")}</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+            <WrenchIcon size={16} />
+            {profile.maintenanceNoticeText || (lang === "hi" ? "साइट मेंटेनेंस चल रहा है — नई अपॉइंटमेंट बुकिंग अस्थायी रूप से रोकी गई है।" : "Scheduled Maintenance in Progress — New appointment bookings are temporarily paused.")}
+          </span>
           <Link
             href="/emergency"
             style={{
@@ -125,7 +129,8 @@ export default function Navbar() {
             {t("logout", lang)}
           </button>
         ) : (
-          <Link href="/login" className="btn btn-primary btn-sm" id="nav-login-btn">
+          <Link href="/login" className="btn btn-primary btn-sm" id="nav-login-btn" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
+            <KeyIcon size={14} />
             {t("login", lang)}
           </Link>
         )}
@@ -135,8 +140,9 @@ export default function Navbar() {
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-label="Toggle menu"
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}
         >
-          {open ? "✕" : "☰"}
+          {open ? <CloseIcon size={20} /> : <MenuIcon size={20} />}
         </button>
       </div>
     </nav>

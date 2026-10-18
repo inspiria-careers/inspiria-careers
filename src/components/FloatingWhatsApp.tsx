@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { useSite } from "@/contexts/SiteContext";
+import { WhatsAppIcon } from "@/components/Icons";
 
 export default function FloatingWhatsApp() {
   const { profile } = useSite();
@@ -31,14 +32,13 @@ export default function FloatingWhatsApp() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: "48px",
-          height: "48px",
+          width: "52px",
+          height: "52px",
           borderRadius: "50%",
           backgroundColor: "#25D366",
           color: "#ffffff",
           boxShadow: "0 4px 14px rgba(37, 211, 102, 0.4)",
           textDecoration: "none",
-          fontSize: "1.5rem",
           transition: "transform 0.2s ease, box-shadow 0.2s ease",
         }}
         onMouseEnter={(e) => {
@@ -50,7 +50,7 @@ export default function FloatingWhatsApp() {
           e.currentTarget.style.boxShadow = "0 4px 14px rgba(37, 211, 102, 0.4)";
         }}
       >
-        💬
+        <WhatsAppIcon size={28} />
       </a>
     </aside>
   );

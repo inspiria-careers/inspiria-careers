@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
 import type { ClientIntake, AgeGroup, SessionPurpose, PreferredLanguage } from "@/types";
+import { LockIcon, SirenIcon, CloseIcon } from "@/components/Icons";
 
 interface IntakeModalProps {
   isOpen: boolean;
@@ -200,18 +201,21 @@ export default function IntakeModal({
               right: "1.25rem",
               background: "transparent",
               border: "none",
-              fontSize: "1.5rem",
               cursor: "pointer",
               color: "var(--text-muted, #64748b)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            ✕
+            <CloseIcon size={20} />
           </button>
         )}
 
         <div style={{ marginBottom: "1.5rem" }}>
-          <div style={{ display: "inline-block", padding: "0.25rem 0.75rem", borderRadius: "999px", background: "rgba(26, 58, 143, 0.1)", color: "var(--brand-primary, #1a3a8f)", fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.5rem" }}>
-            🔒 {lang === "hi" ? "गोपनीय एवं सुरक्षित" : "Confidential & Protected"}
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.25rem 0.75rem", borderRadius: "999px", background: "rgba(26, 58, 143, 0.1)", color: "var(--brand-primary, #1a3a8f)", fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.5rem" }}>
+            <LockIcon size={14} />
+            <span>{lang === "hi" ? "गोपनीय एवं सुरक्षित" : "Confidential & Protected"}</span>
           </div>
           <h2 style={{ fontSize: "1.5rem", fontWeight: 700, margin: "0 0 0.5rem", color: "var(--text-primary, #0f172a)" }}>
             {t("intakeTitle", lang)}
@@ -387,8 +391,9 @@ export default function IntakeModal({
 
             {/* Emergency Contact */}
             <div style={{ background: "var(--card-subtle, #f8fafc)", padding: "1rem", borderRadius: "10px", border: "1px solid var(--border-color, #e2e8f0)" }}>
-              <div style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem", color: "var(--text-primary)" }}>
-                🚨 {lang === "hi" ? "आपातकालीन संपर्क विवरण" : "Emergency Contact Information"}
+              <div style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem", color: "var(--text-primary)", display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+                <SirenIcon size={16} />
+                <span>{lang === "hi" ? "आपातकालीन संपर्क विवरण" : "Emergency Contact Information"}</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div>
