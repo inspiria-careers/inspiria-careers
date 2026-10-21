@@ -86,6 +86,45 @@ export default function ResourcesPage() {
             ))}
           </div>
 
+          {/* Featured Study Abroad Universities Callout */}
+          <div
+            style={{
+              background: "linear-gradient(135deg, rgba(26,58,143,0.08) 0%, rgba(15,23,42,0.04) 100%)",
+              border: "1.5px solid rgba(26,58,143,0.2)",
+              borderRadius: "14px",
+              padding: "1rem 1.5rem",
+              marginBottom: "2rem",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "1rem",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+              <span style={{ fontSize: "1.8rem" }}>🏛️</span>
+              <div>
+                <strong style={{ fontSize: "0.98rem", color: "var(--brand-primary)", display: "block" }}>
+                  {lang === "hi"
+                    ? "विदेश में उच्च शिक्षा: शीर्ष 10 अंतर्राष्ट्रीय विश्वविद्यालय गाइड"
+                    : "Study Abroad: Top 10 International Universities Admission Guide"}
+                </strong>
+                <span style={{ fontSize: "0.84rem", color: "var(--text-muted)" }}>
+                  {lang === "hi"
+                    ? "MIT, Oxford, Stanford, Cambridge, NUS, Harvard सहित शीर्ष 10 संस्थानों की फीस, 100% छात्रवृत्तियां और काउंसलर टिप्स।"
+                    : "Comprehensive guide to MIT, Oxford, Stanford, Cambridge, NUS, Harvard, and more: COA fees, need-blind aid, and deadlines."}
+                </span>
+              </div>
+            </div>
+            <Link
+              href="/universities"
+              className="btn btn-primary btn-sm"
+              style={{ whiteSpace: "nowrap", padding: "0.45rem 1rem", fontWeight: 700 }}
+            >
+              {lang === "hi" ? "गाइड देखें →" : "View Top 10 Guide →"}
+            </Link>
+          </div>
+
           {loading ? (
             <div style={{ display: "flex", justifyContent: "center", padding: "3rem 0" }}>
               <CircularProgressLoader

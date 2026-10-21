@@ -8,6 +8,7 @@ const strings: Record<string, Record<Lang, string>> = {
   home: { en: "Home", hi: "होम" },
   about: { en: "About Us", hi: "हमारे बारे में" },
   services: { en: "Services", hi: "सेवाएं" },
+  universities: { en: "Top Universities", hi: "शीर्ष विश्वविद्यालय" },
   gallery: { en: "Gallery", hi: "गैलरी" },
   contact: { en: "Contact", hi: "संपर्क" },
   bookAppointment: { en: "Book Appointment", hi: "अपॉइंटमेंट बुक करें" },

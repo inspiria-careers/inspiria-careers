@@ -420,6 +420,44 @@ export function MenuIcon({ size = 20, color, className, ...props }: IconProps) {
   );
 }
 
+// Chevron Down (for dropdowns & accordions)
+export function ChevronDownIcon({ size = 20, color, className, ...props }: IconProps) {
+  return (
+    <svg {...baseProps(size, color)} className={className} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+// Chevron Up (for accordions)
+export function ChevronUpIcon({ size = 20, color, className, ...props }: IconProps) {
+  return (
+    <svg {...baseProps(size, color)} className={className} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polyline points="18 15 12 9 6 15" />
+    </svg>
+  );
+}
+
+// Check Circle (for verified items)
+export function CheckCircleIcon({ size = 20, color, className, ...props }: IconProps) {
+  return (
+    <svg {...baseProps(size, color)} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
+
+// Arrow Right (for CTAs & links)
+export function ArrowRightIcon({ size = 20, color, className, ...props }: IconProps) {
+  return (
+    <svg {...baseProps(size, color)} className={className} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <line x1="5" y1="12" x2="19" y2="12" />
+      <polyline points="12 5 19 12 12 19" />
+    </svg>
+  );
+}
+
 // Close Icon (X)
 export function CloseIcon({ size = 20, color, className, ...props }: IconProps) {
   return (

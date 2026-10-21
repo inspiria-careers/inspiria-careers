@@ -80,6 +80,7 @@ export default function Footer() {
             <li><Link href="/">{t("home", lang)}</Link></li>
             <li><Link href="/about">{t("about", lang)}</Link></li>
             <li><Link href="/services">{t("services", lang)}</Link></li>
+            <li><Link href="/universities">{t("universities", lang)}</Link></li>
             <li><Link href="/workshops">{t("workshops", lang)}</Link></li>
             <li><Link href="/resources">{t("resources", lang)}</Link></li>
             <li><Link href="/faq">{t("faqs", lang)}</Link></li>
