@@ -362,6 +362,55 @@ button { font-family: inherit; cursor: pointer; }
 .tab-btn { padding: .45rem 1.1rem; border-radius: 20px; font-size: .82rem; font-weight: 500; background: var(--surface-2); color: var(--text-muted); border: 1.5px solid var(--border); cursor: pointer; transition: all .15s; }
 .tab-btn.active { background: var(--brand-primary); color: #fff; border-color: var(--brand-primary); }
 
+/* ── Modal Popups & Dialogs ── */
+.modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(15, 23, 42, 0.75) !important;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1.25rem !important;
+  z-index: 9999 !important;
+  overflow-y: auto !important;
+  animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-content {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0,0,0,0.05) !important;
+  width: 100% !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  position: relative !important;
+  animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-header {
+  padding: 1.15rem 1.5rem !important;
+  border-bottom: 1px solid var(--border) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  background: var(--surface-2) !important;
+  border-top-left-radius: var(--radius-lg) !important;
+  border-top-right-radius: var(--radius-lg) !important;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* ── Clean Print Styling (FB-102) ── */
 @media print {
   @page {
@@ -373,7 +422,10 @@ button { font-family: inherit; cursor: pointer; }
     color: #000000 !important;
     font-size: 11pt;
   }
-  .navbar, .footer, .dash-sidebar, .btn, .ticker-bar, button, [role="navigation"] {
+  .navbar, .footer, .dash-sidebar, .dash-header, .dash-nav-item, .dash-section-title,
+  .tabs, .btn, .ticker-bar, button, [role="navigation"], aside, header, nav,
+  .dash-layout > *:not(.modal-backdrop), .table-responsive, .card:not(#printable-receipt),
+  .modal-header {
     display: none !important;
   }
   .modal-backdrop {
@@ -381,14 +433,25 @@ button { font-family: inherit; cursor: pointer; }
     background: none !important;
     padding: 0 !important;
     display: block !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
   .modal-content {
     box-shadow: none !important;
-    border: 1px solid #ccc !important;
+    border: none !important;
     max-width: 100% !important;
     width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
+    animation: none !important;
+  }
+  #printable-receipt {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
   }
 }
 

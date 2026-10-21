@@ -240,6 +240,21 @@ export default function CounsellorDashboardPage() {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [receiptModalAppt, setReceiptModalAppt] = useState<AppointmentDoc | null>(null);
 
+  // Global Escape key listener to close active modal popups
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (refundModalAppt) setRefundModalAppt(null);
+        if (receiptModalAppt) setReceiptModalAppt(null);
+        if (rejectModalAppt) setRejectModalAppt(null);
+        if (previewImageUrl) setPreviewImageUrl(null);
+        if (showResourceModal) setShowResourceModal(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [refundModalAppt, receiptModalAppt, rejectModalAppt, previewImageUrl, showResourceModal]);
+
   // Blocked dates state
   const [newBlockedDate, setNewBlockedDate] = useState("");
   const [savingSchedule, setSavingSchedule] = useState(false);
@@ -847,6 +862,108 @@ export default function CounsellorDashboardPage() {
       alert("Failed to record refund.");
     } finally {
       setSubmittingRefund(false);
+    }
+  };
+
+  // Print Official Payment Receipt in a Dedicated Clean Popup Window
+  const handlePrintReceipt = (appt: AppointmentDoc) => {
+    const receiptNo = appt.receiptNumber || generateReceiptNumber(appt.id);
+    const printWindow = window.open("", "_blank", "width=850,height=950,scrollbars=yes,resizable=yes");
+    if (printWindow) {
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Receipt_${receiptNo}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1e293b; padding: 36px; margin: 0; background: #ffffff; line-height: 1.5; }
+    .receipt-container { max-width: 680px; margin: 0 auto; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2.5px solid #1a3a8f; padding-bottom: 20px; margin-bottom: 24px; }
+    .title { font-size: 22px; font-weight: 800; color: #1a3a8f; margin: 0 0 4px; }
+    .subtitle { font-size: 13px; color: #64748b; margin: 0 0 4px; }
+    .contact-item { font-size: 11px; color: #64748b; }
+    .badge { display: inline-block; background: #ecfdf5; color: #047857; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 20px; border: 1px solid #a7f3d0; text-transform: uppercase; }
+    .receipt-no { font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; color: #0f172a; margin-top: 4px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; font-size: 13px; }
+    .sec-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .table-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+    .t-head { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #64748b; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px; }
+    .t-body { display: flex; justify-content: space-between; align-items: center; }
+    .amount { font-size: 20px; font-weight: 800; color: #1a3a8f; }
+    .footer { font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 16px; margin-top: 24px; }
+    @media print {
+      body { padding: 0; background: #fff; }
+      .receipt-container { border: none; box-shadow: none; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-container">
+    <div class="header">
+      <div>
+        <div class="title">${profile.siteName || "Inspiria Careers"}</div>
+        <div class="subtitle">${profile.counsellorName || "Career Guidance Centre"}</div>
+        ${profile.email ? `<div class="contact-item">✉️ ${profile.email}</div>` : ""}
+        ${profile.phone ? `<div class="contact-item">📞 ${profile.phone}</div>` : ""}
+      </div>
+      <div style="text-align: right;">
+        <span class="badge">✓ PAID &amp; VERIFIED</span>
+        <div class="sec-label" style="margin-top: 8px;">RECEIPT NO:</div>
+        <div class="receipt-no">${receiptNo}</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <div class="sec-label">BILLED TO:</div>
+        <strong style="font-size: 14px; color: #0f172a;">${appt.clientName}</strong>
+        ${appt.clientPhone ? `<div style="margin-top:2px;">Phone: ${appt.clientPhone}</div>` : ""}
+        ${appt.clientEmail ? `<div>Email: ${appt.clientEmail}</div>` : ""}
+      </div>
+      <div>
+        <div class="sec-label">TRANSACTION DETAILS:</div>
+        <div>Date: ${appt.paymentDate || appt.date}</div>
+        <div>Mode: UPI / QR Transfer</div>
+        <div>UTR: <code>${appt.utrNumber || "Verified"}</code></div>
+      </div>
+    </div>
+
+    <div class="table-box">
+      <div class="t-head">
+        <span>SERVICE DESCRIPTION</span>
+        <span>AMOUNT</span>
+      </div>
+      <div class="t-body">
+        <div>
+          <strong style="font-size: 14px; color: #0f172a;">${appt.serviceTitle}</strong>
+          <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+            Slot: ${appt.date} (${appt.timeSlot}) · ${appt.mode}
+          </div>
+        </div>
+        <div class="amount">₹${appt.serviceFee || 0}</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      ${profile.refundPolicyText ? `<p style="margin: 0 0 6px;">Policy: ${profile.refundPolicyText}</p>` : ""}
+      <p style="margin: 0;">This is a computer-generated digital receipt issued by ${profile.siteName || "Inspiria Careers"}. Valid without physical signature.</p>
+    </div>
+  </div>
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 250);
+    };
+  </script>
+</body>
+</html>`;
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+    } else {
+      window.print();
     }
   };
 
@@ -3962,11 +4079,30 @@ export default function CounsellorDashboardPage() {
 
               {/* Add Resource Modal */}
               {showResourceModal && (
-                <div className="modal-backdrop">
-                  <div className="modal-content" style={{ maxWidth: 540 }}>
+                <div
+                  className="modal-backdrop"
+                  onClick={() => setShowResourceModal(false)}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    background: "rgba(15, 23, 42, 0.75)",
+                    backdropFilter: "blur(4px)",
+                    WebkitBackdropFilter: "blur(4px)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "1rem",
+                    zIndex: 9999,
+                  }}
+                >
+                  <div
+                    className="modal-content"
+                    style={{ maxWidth: 540, background: "var(--surface)", position: "relative" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="modal-header">
-                      <h3 style={{ fontSize: "1.15rem", fontWeight: 700 }}>+ Add Educational Resource</h3>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowResourceModal(false)}>✕</button>
+                      <h3 style={{ fontSize: "1.15rem", fontWeight: 700, margin: 0 }}>+ Add Educational Resource</h3>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowResourceModal(false)} aria-label="Close">✕</button>
                     </div>
                     <form onSubmit={handleCreateResource} style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
                       <div className="form-group">
@@ -4494,16 +4630,36 @@ export default function CounsellorDashboardPage() {
 
       {/* MODAL 1: REJECT PAYMENT */}
       {rejectModalAppt && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: 480 }}>
+        <div
+          className="modal-backdrop"
+          onClick={() => setRejectModalAppt(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.75)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            className="modal-content"
+            style={{ maxWidth: 480, background: "var(--surface)", position: "relative" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
-              <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--error)" }}>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--error)", margin: 0 }}>
                 ✕ Reject Payment Submission
               </h3>
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
                 onClick={() => setRejectModalAppt(null)}
+                aria-label="Close"
               >
                 ✕
               </button>
@@ -4575,18 +4731,38 @@ export default function CounsellorDashboardPage() {
         </div>
       )}
 
-      {/* MODAL 2: RECORD REFUND */}
+      {/* MODAL 2: RECORD CLIENT REFUND (CENTERED POPUP WINDOW) */}
       {refundModalAppt && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: 480 }}>
+        <div
+          className="modal-backdrop"
+          onClick={() => setRefundModalAppt(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.75)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            className="modal-content"
+            style={{ maxWidth: 480, background: "var(--surface)", position: "relative" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
-              <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0, color: "var(--brand-primary)" }}>
                 ↩ Record Client Refund
               </h3>
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
                 onClick={() => setRefundModalAppt(null)}
+                aria-label="Close"
               >
                 ✕
               </button>
@@ -4647,10 +4823,25 @@ export default function CounsellorDashboardPage() {
 
       {/* MODAL 3: SCREENSHOT PREVIEW */}
       {previewImageUrl && (
-        <div className="modal-backdrop" onClick={() => setPreviewImageUrl(null)}>
+        <div
+          className="modal-backdrop"
+          onClick={() => setPreviewImageUrl(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.85)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+            zIndex: 9999,
+          }}
+        >
           <div
             className="modal-content"
-            style={{ maxWidth: 640, background: "transparent", border: "none", boxShadow: "none" }}
+            style={{ maxWidth: 640, background: "transparent", border: "none", boxShadow: "none", position: "relative" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }}>
@@ -4658,6 +4849,7 @@ export default function CounsellorDashboardPage() {
                 type="button"
                 className="btn btn-primary btn-sm"
                 onClick={() => setPreviewImageUrl(null)}
+                aria-label="Close"
               >
                 ✕ Close Preview
               </button>
@@ -4677,18 +4869,38 @@ export default function CounsellorDashboardPage() {
         </div>
       )}
 
-      {/* MODAL 4: PRINTABLE RECEIPT */}
+      {/* MODAL 4: PRINTABLE RECEIPT (CENTERED POPUP WINDOW WITH PRINT OPTION) */}
       {receiptModalAppt && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: 560 }}>
+        <div
+          className="modal-backdrop"
+          onClick={() => setReceiptModalAppt(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.75)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            className="modal-content"
+            style={{ maxWidth: 580, background: "var(--surface)", position: "relative" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
-              <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0, color: "var(--brand-primary)" }}>
                 🧾 Official Consultation Payment Receipt
               </h3>
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
                 onClick={() => setReceiptModalAppt(null)}
+                aria-label="Close"
               >
                 ✕
               </button>
@@ -4698,7 +4910,7 @@ export default function CounsellorDashboardPage() {
               {/* Receipt Header */}
               <div style={{ borderBottom: "2px solid var(--brand-primary)", paddingBottom: "1rem", marginBottom: "1.25rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  <h2 style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--brand-primary)" }}>
+                  <h2 style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--brand-primary)", margin: "0 0 0.25rem" }}>
                     {profile.siteName || "Inspiria Careers"}
                   </h2>
                   <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
@@ -4708,10 +4920,10 @@ export default function CounsellorDashboardPage() {
                   {profile.phone && <div style={{ fontSize: "0.78rem", color: "var(--text-light)" }}>📞 {profile.phone}</div>}
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <span className="badge badge-success" style={{ fontSize: "0.85rem", padding: "0.3rem 0.6rem" }}>
+                  <span className="badge badge-success" style={{ fontSize: "0.82rem", padding: "0.3rem 0.6rem" }}>
                     ✓ PAID &amp; VERIFIED
                   </span>
-                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.4rem" }}>
+                  <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "0.4rem" }}>
                     Receipt No:
                   </div>
                   <strong style={{ fontSize: "0.88rem", fontFamily: "monospace" }}>
@@ -4723,13 +4935,13 @@ export default function CounsellorDashboardPage() {
               {/* Client & Service Grid */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.25rem", fontSize: "0.88rem" }}>
                 <div>
-                  <div style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>BILLED TO:</div>
+                  <div style={{ color: "var(--text-muted)", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase" }}>BILLED TO:</div>
                   <strong>{receiptModalAppt.clientName}</strong>
                   {receiptModalAppt.clientPhone && <div>Phone: {receiptModalAppt.clientPhone}</div>}
                   {receiptModalAppt.clientEmail && <div>Email: {receiptModalAppt.clientEmail}</div>}
                 </div>
                 <div>
-                  <div style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>TRANSACTION DETAILS:</div>
+                  <div style={{ color: "var(--text-muted)", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase" }}>TRANSACTION DETAILS:</div>
                   <div>Date: {receiptModalAppt.paymentDate || receiptModalAppt.date}</div>
                   <div>Mode: UPI / QR Transfer</div>
                   <div>UTR: <code>{receiptModalAppt.utrNumber || "Verified"}</code></div>
@@ -4770,7 +4982,7 @@ export default function CounsellorDashboardPage() {
                 <button
                   type="button"
                   className="btn btn-outline"
-                  onClick={() => window.print()}
+                  onClick={() => handlePrintReceipt(receiptModalAppt)}
                 >
                   🖨️ Print Receipt
                 </button>
