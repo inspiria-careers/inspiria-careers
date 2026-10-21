@@ -28,6 +28,7 @@ import WorkshopManager from "@/components/WorkshopManager";
 import InsightsView from "@/components/InsightsView";
 import MessagingPanel from "@/components/MessagingPanel";
 import CircularProgressLoader from "@/components/CircularProgressLoader";
+import UniversityManagementPanel from "@/components/UniversityManagementPanel";
 import { sendReminder } from "@/lib/reminderService";
 import { t } from "@/translations";
 import type { ResourceItem, DeletionRequest, SessionFeedback, NewsletterSubscriber } from "@/types";
@@ -121,10 +122,10 @@ interface SharedVaultItem {
 
 export default function CounsellorDashboardPage() {
   const { user, role, loading: authLoading } = useAuth();
-  const { profile, services, gallery, updateProfile, updateServices, updateGallery, lang } = useSite();
+  const { profile, services, gallery, universities, updateProfile, updateServices, updateGallery, lang } = useSite();
 
   const [activeTab, setActiveTab] = useState<
-    "overview" | "profile" | "services" | "gallery" | "appointments" | "posts" | "reviews" | "vault" | "schedule" | "inbox" | "payments" | "insights" | "workshops" | "resources" | "deletionQueue" | "clientMessaging" | "sessionFeedback" | "subscribers"
+    "overview" | "profile" | "services" | "gallery" | "universities" | "appointments" | "posts" | "reviews" | "vault" | "schedule" | "inbox" | "payments" | "insights" | "workshops" | "resources" | "deletionQueue" | "clientMessaging" | "sessionFeedback" | "subscribers"
   >("overview");
 
   // Phase 6 States
@@ -1625,6 +1626,12 @@ export default function CounsellorDashboardPage() {
             🖼️ Gallery ({galleryList.length})
           </button>
           <button
+            className={`dash-nav-item${activeTab === "universities" ? " active" : ""}`}
+            onClick={() => setActiveTab("universities")}
+          >
+            🏛️ Universities Guide ({universities.length})
+          </button>
+          <button
             className={`dash-nav-item${activeTab === "posts" ? " active" : ""}`}
             onClick={() => setActiveTab("posts")}
           >
@@ -2604,6 +2611,11 @@ export default function CounsellorDashboardPage() {
                 )}
               </div>
             </div>
+          )}
+
+          {/* TAB: UNIVERSITIES GUIDE */}
+          {activeTab === "universities" && (
+            <UniversityManagementPanel viewerRole="counsellor" />
           )}
 
           {/* TAB 4: POSTS */}

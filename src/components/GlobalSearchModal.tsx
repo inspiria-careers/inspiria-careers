@@ -120,7 +120,7 @@ export default function GlobalSearchModal({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const { services, profile, lang } = useSite();
+  const { services, universities, profile, lang } = useSite();
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -148,18 +148,19 @@ export default function GlobalSearchModal({
   const searchableIndex = useMemo<GlobalSearchResult[]>(() => {
     const list: GlobalSearchResult[] = [...STATIC_SEARCH_TARGETS];
 
-    // Add Top Universities
-    INTERNATIONAL_UNIVERSITIES.forEach((u) => {
+    // Add Top Universities (dynamic from SiteContext with fallback)
+    const currentUniversities = universities && universities.length > 0 ? universities : INTERNATIONAL_UNIVERSITIES;
+    currentUniversities.forEach((u) => {
       list.push({
         id: `uni-${u.id}`,
         category: "University",
         categoryHi: "विश्वविद्यालय",
         title: u.name,
         titleHi: u.nameHi,
-        description: `${u.country} • Core: ${u.coreStrengths.slice(0, 3).join(", ")} • COA: ${u.tuitionFees.totalCoa}`,
-        descriptionHi: `${u.countryHi} • मुख्य विषय: ${u.coreStrengthsHi.slice(0, 3).join(", ")}`,
+        description: `${u.country} • Core: ${(u.coreStrengths || []).slice(0, 3).join(", ")} • COA: ${u.tuitionFees?.totalCoa || "N/A"}`,
+        descriptionHi: `${u.countryHi || u.country} • मुख्य विषय: ${(u.coreStrengthsHi || []).slice(0, 3).join(", ")}`,
         url: `/universities#uni-${u.id}`,
-        icon: u.flag,
+        icon: u.flag || "🏛️",
         badge: `#${u.rank}`,
       });
     });

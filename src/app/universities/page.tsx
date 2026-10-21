@@ -19,7 +19,8 @@ import {
 const COUNTRIES = ["All", "USA", "UK", "Singapore", "Canada", "Switzerland", "Australia"];
 
 export default function UniversitiesPage() {
-  const { lang } = useSite();
+  const { universities, lang } = useSite();
+  const currentUniversities = universities && universities.length > 0 ? universities : INTERNATIONAL_UNIVERSITIES;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("All");
@@ -30,7 +31,7 @@ export default function UniversitiesPage() {
 
   // Filter universities based on search, country, and aid type
   const filteredUniversities = useMemo(() => {
-    return INTERNATIONAL_UNIVERSITIES.filter((u) => {
+    return currentUniversities.filter((u) => {
       // Country match
       if (selectedCountry !== "All" && u.country !== selectedCountry) {
         return false;
@@ -56,7 +57,7 @@ export default function UniversitiesPage() {
       }
       return true;
     });
-  }, [searchQuery, selectedCountry, selectedAidType]);
+  }, [currentUniversities, searchQuery, selectedCountry, selectedAidType]);
 
   const toggleExpand = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));

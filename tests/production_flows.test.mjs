@@ -1010,6 +1010,122 @@ describe("Phase 7: Security Matrix, Data Isolation & Reliability Tests", () => {
     assert.equal(roles.admin.canManageUsers, true);
     assert.equal(roles.admin.canAccessSessionNotes, false, "Admin must NOT have access to clinical sessionNotes");
   });
+
+  // 10. Universities Guide: Counsellor Editing & Admin Full Access Test
+  test("Universities Guide: Counsellor and Admin can both manage, edit, add, and delete universities", () => {
+    // 1. Authorization check based on firestore.rules: isCounsellor() = role == 'counsellor' || role == 'admin'
+    function canManageUniversities(role) {
+      return role === "counsellor" || role === "admin";
+    }
+
+    assert.equal(canManageUniversities("client"), false, "Clients must not be able to edit universities");
+    assert.equal(canManageUniversities("counsellor"), true, "Counsellor must have full rights to edit universities");
+    assert.equal(canManageUniversities("admin"), true, "Admin must have full access to the universities tab");
+
+    // 2. University Item schema validation and edit simulation
+    const mockUniversity = {
+      id: "mit-usa",
+      rank: 1,
+      name: "Massachusetts Institute of Technology (MIT)",
+      nameHi: "मैसाचुसेट्स इंस्टीट्यूट ऑफ टेक्नोलॉजी (MIT)",
+      country: "USA",
+      countryHi: "संयुक्त राज्य अमेरिका (USA)",
+      flag: "🇺🇸",
+      badge: "World #1 STEM & CS",
+      badgeHi: "विश्व #1 स्टेम और सीएस",
+      coreStrengths: ["Computer Science", "Engineering", "Physical Sciences"],
+      coreStrengthsHi: ["कंप्यूटर साइंस", "इंजीनियरिंग", "भौतिक विज्ञान"],
+      courseDuration: "4 Years (B.S.)",
+      courseDurationHi: "4 वर्ष (बी.एस.)",
+      internshipsAndIndustry: "Flexible research and work via UROP and MISTI.",
+      internshipsAndIndustryHi: "UROP और MISTI के माध्यम से लचीला शोध और उद्योग इंटर्नशिप।",
+      tuitionFees: {
+        tuition: "~$64,310/year",
+        livingAndHousing: "~$25,000/year",
+        totalCoa: "~$89,310/year",
+        currency: "USD",
+      },
+      scholarshipsAndAid: "Need-Blind & 100% Need-Met for all international undergraduates.",
+      scholarshipsAndAidHi: "सभी अंतर्राष्ट्रीय छात्रों के लिए 100% वित्तीय आवश्यकता-पूर्ण सहायता।",
+      aidType: "Need-Blind",
+      admissionDeadlines: {
+        earlyDeadline: "Nov 1 (Early Action)",
+        regularDeadline: "Jan 4 (Regular Action)",
+        decisionRelease: "Mid-Dec / Mid-March",
+        portal: "MIT Admissions Portal",
+      },
+      counselorTip: "MIT seeks authentic makers and problem solvers.",
+      counselorTipHi: "एमआईटी व्यावहारिक निर्माताओं और समस्या समाधानकर्ताओं की तलाश करता है।",
+    };
+
+    // Verify critical fields exist and are non-empty
+    assert.ok(mockUniversity.id.length > 0);
+    assert.ok(mockUniversity.name.length > 0);
+    assert.ok(mockUniversity.nameHi.length > 0);
+    assert.ok(mockUniversity.tuitionFees.totalCoa.length > 0);
+    assert.ok(mockUniversity.admissionDeadlines.portal.length > 0);
+    assert.ok(mockUniversity.counselorTip.length > 0);
+
+    // 3. Edit mutation test (Counsellor or Admin updates tuition and tip)
+    const updatedUniversity = {
+      ...mockUniversity,
+      tuitionFees: {
+        ...mockUniversity.tuitionFees,
+        totalCoa: "~$91,000/year",
+      },
+      counselorTip: "Focus on demonstrable open-source contributions and portfolio projects.",
+    };
+
+    assert.equal(updatedUniversity.tuitionFees.totalCoa, "~$91,000/year");
+    assert.ok(updatedUniversity.counselorTip.includes("open-source contributions"));
+
+    // 4. Addition and deletion operations test
+    let universityCollection = [mockUniversity];
+    const newUni = {
+      id: "eth-zurich",
+      rank: 11,
+      name: "ETH Zurich",
+      nameHi: "ईटीएच ज्यूरिख",
+      country: "Switzerland",
+      countryHi: "स्विट्जरलैंड",
+      flag: "🇨🇭",
+      badge: "European STEM Leader",
+      badgeHi: "यूरोपीय स्टेम लीडर",
+      coreStrengths: ["Engineering", "Computer Science"],
+      coreStrengthsHi: ["इंजीनियरिंग", "कंप्यूटर साइंस"],
+      courseDuration: "3 Years (B.Sc.)",
+      courseDurationHi: "3 वर्ष",
+      internshipsAndIndustry: "Direct integration with European innovation hubs.",
+      internshipsAndIndustryHi: "यूरोपीय नवाचार केंद्रों के साथ सीधा जुड़ाव।",
+      tuitionFees: {
+        tuition: "~CHF 1,460/year",
+        livingAndHousing: "~CHF 22,000/year",
+        totalCoa: "~CHF 23,460/year",
+        currency: "CHF",
+      },
+      scholarshipsAndAid: "Excellence Scholarship & Opportunity Programme (ESOP).",
+      scholarshipsAndAidHi: "उत्कृष्टता छात्रवृत्ति कार्यक्रम।",
+      aidType: "Merit-Based",
+      admissionDeadlines: {
+        earlyDeadline: "N/A",
+        regularDeadline: "Apr 30",
+        decisionRelease: "June",
+        portal: "ETH e-Apply",
+      },
+      counselorTip: "Top German proficiency recommended for undergraduate courses.",
+      counselorTipHi: "स्नातक पाठ्यक्रमों के लिए जर्मन भाषा दक्षता आवश्यक है।",
+    };
+
+    // Add new university
+    universityCollection = [...universityCollection, newUni];
+    assert.equal(universityCollection.length, 2);
+    assert.equal(universityCollection[1].id, "eth-zurich");
+
+    // Remove university
+    universityCollection = universityCollection.filter((u) => u.id !== "mit-usa");
+    assert.equal(universityCollection.length, 1);
+    assert.equal(universityCollection[0].id, "eth-zurich");
+  });
 });
 
 

@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Phase 7.3.0] - 2026-10-21
+
+### Added & Hardened
+- **Universities Guide Management Panel (`UniversityManagementPanel.tsx`)**:
+  - Built a comprehensive, modular management panel enabling counsellors and administrators to curate and edit international universities dynamically.
+  - Full editing support for all parameters: Rank, Name (EN/HI), Country (EN/HI), Flag, Badge (EN/HI), Core Academic Strengths (EN/HI), Duration (EN/HI), Research & Work Opportunities (EN/HI), Annual Tuition, Living/Housing & Total Cost of Attendance (COA), Scholarships & Aid Strategy (EN/HI), Financial Aid Type (Need-Blind, Need-Aware, Merit-Based), Key Application Deadlines (Early Action/Decision, Regular Decision, Decision Release dates), Official Application Portal link, and Counsellor Strategy Tips (EN/HI).
+  - Ability to add new international universities and delete existing ones with instant preview.
+  - "Reset to 10 Default Universities" quick-action restoring the curated list of 10 world-leading institutions.
+  - Integrated with `logAuditEvent` recording university updates, additions, and deletions with actor UID and role attribution.
+- **Counsellor Dashboard Integration (`/dashboard/counsellor`)**:
+  - Added dedicated `🏛️ Universities Guide` tab under "Website Content" navigation in the Counsellor dashboard.
+  - Counsellors can update admission requirements, deadlines, tuition figures, and strategic tips in real-time.
+- **Admin Full Tab Access (`/dashboard/admin`)**:
+  - Added complete, unrestricted access to the Universities Guide tab in the Admin panel under "Administration".
+  - Admins can manage, audit, add, edit, or reset university content with full administrative privileges.
+- **Dynamic SiteContext & Public Synchronization**:
+  - Added `universities` state and `updateUniversities` mutation handler to `SiteContext.tsx` with Firestore persistence (`siteContent/settings`), Stale-While-Revalidate (SWR) localStorage caching (`ic_site_v2`), and real-time cross-tab synchronization.
+  - Updated `/universities` public page and `GlobalSearchModal` to consume dynamic universities data from `useSite()`.
+- **Automated Test Coverage**:
+  - Expanded `tests/production_flows.test.mjs` to 36 test cases validating counsellor editing rights, admin tab authorization, university item schema integrity, and addition/deletion operations.
+
 ## [Phase 7.2.0] - 2026-10-21
 
 ### Added & Hardened

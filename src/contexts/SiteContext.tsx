@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Lang } from "@/translations";
+import { INTERNATIONAL_UNIVERSITIES, UniversityItem } from "@/data/internationalUniversities";
 
 // ── TYPES ────────────────────────────────────────────────────────
 export interface ServiceItem {
@@ -290,12 +291,14 @@ interface SiteContextType {
   profile: SiteProfile;
   services: ServiceItem[];
   gallery: GalleryItem[];
+  universities: UniversityItem[];
   lang: Lang;
   setLang: (l: Lang) => void;
   loading: boolean;
   updateProfile: (partial: Partial<SiteProfile>) => Promise<void>;
   updateServices: (items: ServiceItem[]) => Promise<void>;
   updateGallery: (items: GalleryItem[]) => Promise<void>;
+  updateUniversities: (items: UniversityItem[]) => Promise<void>;
 }
 
 const SiteContext = createContext<SiteContextType>({} as SiteContextType);
@@ -308,6 +311,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<SiteProfile>(EMPTY_PROFILE);
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
+  const [universities, setUniversities] = useState<UniversityItem[]>(INTERNATIONAL_UNIVERSITIES);
   const [lang, setLangState] = useState<Lang>("en");
   const [loading, setLoading] = useState(true);
 
@@ -331,6 +335,9 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
           if (c.profile) { setProfile(c.profile); applyTheme(c.profile); }
           if (c.services) setServices(c.services);
           if (c.gallery) setGallery(c.gallery);
+          if (c.universities && Array.isArray(c.universities) && c.universities.length > 0) {
+            setUniversities(c.universities);
+          }
         }
       } catch {}
     }
@@ -348,13 +355,22 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
           const p: SiteProfile = { ...EMPTY_PROFILE, ...(d.profile ?? {}) };
           const sv: ServiceItem[] = d.services ?? [];
           const gv: GalleryItem[] = d.gallery ?? [];
+          const uv: UniversityItem[] =
+            d.universities && Array.isArray(d.universities) && d.universities.length > 0
+              ? d.universities
+              : INTERNATIONAL_UNIVERSITIES;
+
           setProfile(p);
           setServices(sv);
           setGallery(gv);
+          setUniversities(uv);
           applyTheme(p);
           // Cache
           if (typeof window !== "undefined") {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({ profile: p, services: sv, gallery: gv }));
+            localStorage.setItem(
+              STORAGE_KEY,
+              JSON.stringify({ profile: p, services: sv, gallery: gv, universities: uv })
+            );
           }
         }
       } catch {}
@@ -374,6 +390,9 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
         if (c.profile) { setProfile(c.profile); applyTheme(c.profile); }
         if (c.services) setServices(c.services);
         if (c.gallery) setGallery(c.gallery);
+        if (c.universities && Array.isArray(c.universities) && c.universities.length > 0) {
+          setUniversities(c.universities);
+        }
       } catch {}
     };
     window.addEventListener("storage", handler);
@@ -381,13 +400,20 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   }, [applyTheme]);
 
   const persist = useCallback(
-    async (p: SiteProfile, sv: ServiceItem[], gv: GalleryItem[]) => {
+    async (p: SiteProfile, sv: ServiceItem[], gv: GalleryItem[], uv: UniversityItem[]) => {
       if (typeof window !== "undefined") {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ profile: p, services: sv, gallery: gv }));
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ profile: p, services: sv, gallery: gv, universities: uv })
+        );
       }
       try {
         await Promise.race([
-          setDoc(doc(db, "siteContent", "settings"), { profile: p, services: sv, gallery: gv }, { merge: true }),
+          setDoc(
+            doc(db, "siteContent", "settings"),
+            { profile: p, services: sv, gallery: gv, universities: uv },
+            { merge: true }
+          ),
           new Promise<void>((res) => setTimeout(res, 2500)),
         ]);
       } catch {}
@@ -400,25 +426,33 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       const updated = { ...profile, ...partial };
       setProfile(updated);
       applyTheme(updated);
-      await persist(updated, services, gallery);
+      await persist(updated, services, gallery, universities);
     },
-    [profile, services, gallery, applyTheme, persist]
+    [profile, services, gallery, universities, applyTheme, persist]
   );
 
   const updateServices = useCallback(
     async (items: ServiceItem[]) => {
       setServices(items);
-      await persist(profile, items, gallery);
+      await persist(profile, items, gallery, universities);
     },
-    [profile, gallery, persist]
+    [profile, gallery, universities, persist]
   );
 
   const updateGallery = useCallback(
     async (items: GalleryItem[]) => {
       setGallery(items);
-      await persist(profile, services, items);
+      await persist(profile, services, items, universities);
     },
-    [profile, services, persist]
+    [profile, services, universities, persist]
+  );
+
+  const updateUniversities = useCallback(
+    async (items: UniversityItem[]) => {
+      setUniversities(items);
+      await persist(profile, services, gallery, items);
+    },
+    [profile, services, gallery, persist]
   );
 
   const setLang = useCallback((l: Lang) => {
@@ -436,7 +470,19 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SiteContext.Provider
-      value={{ profile, services, gallery, lang, setLang, loading, updateProfile, updateServices, updateGallery }}
+      value={{
+        profile,
+        services,
+        gallery,
+        universities,
+        lang,
+        setLang,
+        loading,
+        updateProfile,
+        updateServices,
+        updateGallery,
+        updateUniversities,
+      }}
     >
       {children}
     </SiteContext.Provider>

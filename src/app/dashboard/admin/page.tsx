@@ -9,6 +9,7 @@ import { logAuditEvent, AuditLogEntry } from "@/lib/auditLog";
 import { formatInr } from "@/lib/paymentUtils";
 import ImageUploader from "@/components/ImageUploader";
 import CircularProgressLoader from "@/components/CircularProgressLoader";
+import UniversityManagementPanel from "@/components/UniversityManagementPanel";
 import { t } from "@/translations";
 
 interface FirestoreUser {
@@ -22,10 +23,10 @@ interface FirestoreUser {
 
 export default function AdminDashboardPage() {
   const { user, role, loading: authLoading, sendPasswordReset } = useAuth();
-  const { profile, services, gallery, updateProfile, updateServices, updateGallery, lang } = useSite();
+  const { profile, services, gallery, universities, updateProfile, updateServices, updateGallery, lang } = useSite();
 
   const [activeTab, setActiveTab] = useState<
-    "users" | "counsellor" | "services" | "gallery" | "settings" | "booking" | "faqs" | "features" | "theme" | "audit" | "export"
+    "users" | "counsellor" | "services" | "gallery" | "universities" | "settings" | "booking" | "faqs" | "features" | "theme" | "audit" | "export"
   >("users");
 
   // User management state
@@ -535,6 +536,12 @@ export default function AdminDashboardPage() {
             onClick={() => setActiveTab("gallery")}
           >
             🖼️ Gallery &amp; Media ({galleryList.length})
+          </button>
+          <button
+            className={`dash-nav-item${activeTab === "universities" ? " active" : ""}`}
+            onClick={() => setActiveTab("universities")}
+          >
+            🏛️ Universities Guide ({universities.length})
           </button>
           <button
             className={`dash-nav-item${activeTab === "settings" ? " active" : ""}`}
@@ -1900,6 +1907,11 @@ export default function AdminDashboardPage() {
                 )}
               </div>
             </div>
+          )}
+
+          {/* TAB: UNIVERSITIES GUIDE (ADMIN FULL ACCESS) */}
+          {activeTab === "universities" && (
+            <UniversityManagementPanel viewerRole="admin" />
           )}
 
           {/* TAB: BOOKING RULES & PAYMENTS */}
