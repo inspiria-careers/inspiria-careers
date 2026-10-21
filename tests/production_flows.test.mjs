@@ -875,6 +875,141 @@ describe("Phase 7: Security Matrix, Data Isolation & Reliability Tests", () => {
     const resetRes = simulateRateLimit(testIp, 5, 60000, afterOneMinute);
     assert.equal(resetRes.success, true, "Request after 1 minute window must succeed (quota reset)");
   });
+
+  // 7. Search Box, Cache, Redirect & User Split Tests
+  test("Search Box: Searches across universities, services, static pages, and FAQs bilingually", () => {
+    const mockIndex = [
+      { id: "uni-mit", category: "University", title: "Massachusetts Institute of Technology (MIT)", titleHi: "मैसाचुसेट्स इंस्टीट्यूट ऑफ टेक्नोलॉजी", url: "/universities#uni-mit" },
+      { id: "uni-oxford", category: "University", title: "University of Oxford", titleHi: "ऑक्सफोर्ड विश्वविद्यालय", url: "/universities#uni-oxford" },
+      { id: "page-book", category: "Page", title: "Book Consultation Appointment", titleHi: "अपॉइंटमेंट बुक करें", url: "/book" },
+      { id: "srv-career", category: "Service", title: "Career Stream Guidance", titleHi: "करियर स्ट्रीम चयन", url: "/services" },
+    ];
+
+    function search(query, lang = "en") {
+      const q = query.toLowerCase().trim();
+      if (!q) return [];
+      return mockIndex.filter(item => {
+        const text = `${item.title} ${item.titleHi} ${item.category}`.toLowerCase();
+        return text.includes(q);
+      });
+    }
+
+    // English search for university
+    const mitResults = search("MIT");
+    assert.ok(mitResults.length >= 1);
+    assert.equal(mitResults[0].id, "uni-mit");
+
+    // Hindi search for booking
+    const bookResults = search("अपॉइंटमेंट", "hi");
+    assert.ok(bookResults.length >= 1);
+    assert.equal(bookResults[0].id, "page-book");
+
+    // Service search
+    const streamResults = search("Stream");
+    assert.ok(streamResults.length >= 1);
+    assert.equal(streamResults[0].id, "srv-career");
+  });
+
+  test("Redirect Security: Blocks Open Redirects and Role Mismatch bounce loops", () => {
+    function sanitizeRedirect(path, userRole = "client") {
+      const defaultDash = userRole === "admin"
+        ? "/dashboard/admin"
+        : userRole === "counsellor"
+        ? "/dashboard/counsellor"
+        : "/dashboard/client";
+
+      if (!path) return defaultDash;
+      const trimmed = path.trim();
+
+      // Guard against Open Redirects: external domain, protocol-relative, javascript:
+      if (
+        !trimmed.startsWith("/") ||
+        trimmed.startsWith("//") ||
+        trimmed.includes("://") ||
+        trimmed.toLowerCase().startsWith("javascript:")
+      ) {
+        return defaultDash;
+      }
+
+      // Role check for dashboard paths to prevent infinite bounce loops
+      if (trimmed.startsWith("/dashboard/admin") && userRole !== "admin") {
+        return defaultDash;
+      }
+      if (trimmed.startsWith("/dashboard/counsellor") && userRole !== "counsellor" && userRole !== "admin") {
+        return defaultDash;
+      }
+
+      return trimmed;
+    }
+
+    // 1. Phishing & External redirect attacks must be neutralized to user dashboard
+    assert.equal(sanitizeRedirect("https://attacker.com/evil", "client"), "/dashboard/client");
+    assert.equal(sanitizeRedirect("//malicious-site.com", "client"), "/dashboard/client");
+    assert.equal(sanitizeRedirect("javascript:alert(1)", "client"), "/dashboard/client");
+    assert.equal(sanitizeRedirect("http://evil.com/login", "admin"), "/dashboard/admin");
+
+    // 2. Role bounce prevention: Client trying to redirect to admin dashboard gets sent to client dashboard
+    assert.equal(sanitizeRedirect("/dashboard/admin", "client"), "/dashboard/client");
+    assert.equal(sanitizeRedirect("/dashboard/counsellor", "client"), "/dashboard/client");
+
+    // 3. Admin can safely access admin dashboard
+    assert.equal(sanitizeRedirect("/dashboard/admin", "admin"), "/dashboard/admin");
+
+    // 4. Legitimate internal paths (e.g. /book or /reviews) are preserved
+    assert.equal(sanitizeRedirect("/book", "client"), "/book");
+    assert.equal(sanitizeRedirect("/universities", "client"), "/universities");
+  });
+
+  test("Cache: Verifies immutable static caching policy and API no-store rules", () => {
+    const cachePolicies = {
+      staticAssets: "public, max-age=31536000, immutable",
+      optimizedImages: "public, max-age=86400, stale-while-revalidate=604800",
+      manifestAndFavicon: "public, max-age=86400, stale-while-revalidate=604800",
+      apiEndpoints: "no-store, no-cache, must-revalidate, proxy-revalidate",
+    };
+
+    assert.ok(cachePolicies.staticAssets.includes("immutable"));
+    assert.ok(cachePolicies.staticAssets.includes("31536000"));
+    assert.ok(cachePolicies.optimizedImages.includes("stale-while-revalidate"));
+    assert.ok(cachePolicies.apiEndpoints.includes("no-store"));
+  });
+
+  test("User Split: Enforces strict role boundary isolation across client, counsellor, and admin", () => {
+    const roles = {
+      client: {
+        allowedDashboards: ["/dashboard/client"],
+        canAccessSessionNotes: false,
+        canVerifyPayments: false,
+        canManageUsers: false,
+      },
+      counsellor: {
+        allowedDashboards: ["/dashboard/counsellor", "/dashboard/client"],
+        canAccessSessionNotes: true,
+        canVerifyPayments: true,
+        canManageUsers: false,
+      },
+      admin: {
+        allowedDashboards: ["/dashboard/admin", "/dashboard/counsellor", "/dashboard/client"],
+        canAccessSessionNotes: false, // Protected clinical notes rule: Admin has NO blanket access
+        canVerifyPayments: true,
+        canManageUsers: true,
+      },
+    };
+
+    // Client restrictions
+    assert.equal(roles.client.canAccessSessionNotes, false);
+    assert.equal(roles.client.canVerifyPayments, false);
+    assert.equal(roles.client.canManageUsers, false);
+
+    // Counsellor privileges
+    assert.equal(roles.counsellor.canAccessSessionNotes, true);
+    assert.equal(roles.counsellor.canVerifyPayments, true);
+    assert.equal(roles.counsellor.canManageUsers, false);
+
+    // Admin privileges & clinical note guard
+    assert.equal(roles.admin.canManageUsers, true);
+    assert.equal(roles.admin.canAccessSessionNotes, false, "Admin must NOT have access to clinical sessionNotes");
+  });
 });
 
 

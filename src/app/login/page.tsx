@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,7 +12,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get("redirect");
 
-  const { signInWithEmail, signInWithGoogle, role } = useAuth();
+  const { signInWithEmail, signInWithGoogle, role, user, loading: authLoading } = useAuth();
   const { profile, lang } = useSite();
 
   const [email, setEmail] = useState("");
@@ -21,17 +21,56 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Guard against Open Redirects and Role Mismatch bounce loops
+  const sanitizeRedirect = (path: string | null, userRole?: string | null): string => {
+    const targetRole = userRole || role || "client";
+    const defaultDash =
+      targetRole === "admin"
+        ? "/dashboard/admin"
+        : targetRole === "counsellor"
+        ? "/dashboard/counsellor"
+        : "/dashboard/client";
+
+    if (!path) return defaultDash;
+
+    // Must be a relative path, must not be protocol-relative (//), must not include colon/javascript
+    const trimmed = path.trim();
+    if (
+      !trimmed.startsWith("/") ||
+      trimmed.startsWith("//") ||
+      trimmed.includes("://") ||
+      trimmed.toLowerCase().startsWith("javascript:")
+    ) {
+      return defaultDash;
+    }
+
+    // Role check for dashboard paths to prevent infinite bounce loops
+    if (trimmed.startsWith("/dashboard/admin") && targetRole !== "admin") {
+      return defaultDash;
+    }
+    if (
+      trimmed.startsWith("/dashboard/counsellor") &&
+      targetRole !== "counsellor" &&
+      targetRole !== "admin"
+    ) {
+      return defaultDash;
+    }
+
+    return trimmed;
+  };
+
   // Handle post-login redirection
   const handleRedirect = (userRole?: string | null) => {
-    if (redirectPath) {
-      router.push(redirectPath);
-      return;
-    }
-    const targetRole = userRole || role;
-    if (targetRole === "admin") router.push("/dashboard/admin");
-    else if (targetRole === "counsellor") router.push("/dashboard/counsellor");
-    else router.push("/dashboard/client");
+    const safeTarget = sanitizeRedirect(redirectPath, userRole);
+    router.push(safeTarget);
   };
+
+  // If already authenticated, redirect to appropriate destination
+  useEffect(() => {
+    if (!authLoading && user) {
+      handleRedirect(role);
+    }
+  }, [authLoading, user, role]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
-import { WrenchIcon, MenuIcon, CloseIcon, KeyIcon } from "@/components/Icons";
+import { WrenchIcon, MenuIcon, CloseIcon, KeyIcon, SearchIcon } from "@/components/Icons";
+import GlobalSearchModal from "@/components/GlobalSearchModal";
 
 const NAV_LINKS = [
   { href: "/", label: "home" },
@@ -32,9 +33,22 @@ export default function Navbar() {
   const { profile, lang, setLang } = useSite();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Close menu on route change
   useEffect(() => { setOpen(false); }, [pathname]);
+
+  // Global Ctrl+K / Cmd+K search shortcut listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const dashHref = getDashHref(role);
 
@@ -115,6 +129,43 @@ export default function Navbar() {
 
       {/* Actions */}
       <div className="navbar-actions">
+        {/* Search modal trigger */}
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => setSearchOpen(true)}
+          aria-label={lang === "hi" ? "खोजें (Ctrl+K)" : "Search (Ctrl+K)"}
+          title={lang === "hi" ? "खोजें (Ctrl+K)" : "Search (Ctrl+K)"}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.4rem",
+            padding: "0.35rem 0.65rem",
+            background: "var(--surface-2)",
+            border: "1px solid var(--border)",
+            borderRadius: "6px",
+            color: "var(--text-muted)",
+          }}
+        >
+          <SearchIcon size={15} />
+          <span style={{ fontSize: "0.8rem", display: "inline-block" }}>
+            {lang === "hi" ? "खोजें" : "Search"}
+          </span>
+          <kbd
+            style={{
+              fontSize: "0.68rem",
+              padding: "0.1rem 0.35rem",
+              borderRadius: "4px",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              boxShadow: "0 1px 0 rgba(0,0,0,0.1)",
+              fontFamily: "monospace",
+              lineHeight: 1,
+            }}
+          >
+            ⌘K
+          </kbd>
+        </button>
+
         {/* Lang toggle */}
         <button
           className="btn btn-ghost btn-sm"
@@ -147,6 +198,7 @@ export default function Navbar() {
         </button>
       </div>
     </nav>
+    <GlobalSearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 }

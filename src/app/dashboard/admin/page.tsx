@@ -472,6 +472,32 @@ export default function AdminDashboardPage() {
     );
   }
 
+  if (!user || role !== "admin") {
+    return (
+      <div className="page-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", padding: "2rem" }}>
+        <div className="card" style={{ maxWidth: "480px", textAlign: "center", padding: "2.5rem 2rem" }}>
+          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🔒</div>
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--brand-primary)", marginBottom: "0.5rem" }}>
+            {lang === "hi" ? "प्रशासनिक पहुंच प्रतिबंधित" : "Admin Access Restricted"}
+          </h2>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
+            {lang === "hi"
+              ? "यह क्षेत्र केवल अधिकृत व्यवस्थापकों के लिए आरक्षित है। कृपया सही क्रेडेंशियल के साथ लॉगिन करें।"
+              : "This zone is strictly restricted to system administrators. Please sign in with an authorized administrator account."}
+          </p>
+          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+            <Link href="/login?redirect=/dashboard/admin" className="btn btn-primary btn-sm">
+              {lang === "hi" ? "एडमिन लॉगिन करें" : "Sign in as Admin"}
+            </Link>
+            <Link href="/" className="btn btn-outline btn-sm">
+              {lang === "hi" ? "होमपेज पर जाएं" : "Return to Home"}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page-wrapper">
       <div className="dash-layout">

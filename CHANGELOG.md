@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Phase 7.2.0] - 2026-10-21
+
+### Added & Hardened
+- **Global Site Search Engine (`GlobalSearchModal.tsx`)**:
+  - Implemented comprehensive site-wide search modal indexing the 10 Top International Universities (MIT, Oxford, Stanford, Cambridge, NUS, Harvard, Caltech, ETH Zurich, Imperial College, Toronto), dynamic counselling services, primary navigational pages, and FAQs.
+  - Added desktop & mobile quick-launch button in Navbar with `⌘K` / `Ctrl+K` global keyboard shortcut listener.
+  - Real-time bilingual query filtering (English & Hindi) with category tags, instant result routing, and escape key handling.
+- **Cache Architecture & Header Policies**:
+  - Validated client-side Stale-While-Revalidate (SWR) cache pattern in `SiteContext.tsx` (`ic_site_v2`) for instant 0ms first-paint and cross-tab `StorageEvent` synchronization.
+  - Configured HTTP caching headers in `next.config.ts` for static icons, favicon, manifest (`public, max-age=86400, stale-while-revalidate=604800`) and API endpoints (`no-store, no-cache, must-revalidate`).
+- **Redirect Hardening & Open Redirect Protection**:
+  - Sanitized `redirectPath` in `src/app/login/page.tsx`: strictly rejects external domain redirects, protocol-relative URLs (`//`), and pseudo-protocols (`javascript:`).
+  - Added role-matching redirect checks: prevents infinite bounce loops when non-admin clients access URLs with `?redirect=/dashboard/admin` by routing to their authorized role dashboard.
+  - Added immediate authenticated check: logged-in users visiting `/login` are automatically routed to their dashboard.
+- **User Split & Dual-Layer Access Control**:
+  - Strengthened client-side role guards across `/dashboard/admin`, `/dashboard/counsellor`, and `/dashboard/client` with graceful, bilingual access-denied views.
+  - Verified database-level security in `firestore.rules`: client private clinical notes and documents remain inaccessible to admins, counsellor private session notes remain inaccessible to clients/admins, and client role self-escalation is strictly prevented.
+- **Automated Test Coverage**:
+  - Expanded `tests/production_flows.test.mjs` to 35 test cases (all passing cleanly) covering bilingual search, open-redirect protection, cache policies, and user split boundaries.
+
 ## [Phase 7.1.0] - 2026-10-18
 
 ### Added & Enhanced

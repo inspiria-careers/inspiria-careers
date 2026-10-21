@@ -550,3 +550,12 @@ export function DynamicVectorIcon({ name, size = 32, className }: { name?: strin
   // If it's a raw Unicode emoji (e.g. 🎯 or 💻), display gracefully with balanced font size
   return <span style={{ fontSize: `${size}px`, lineHeight: 1, display: "inline-block" }}>{name}</span>;
 }
+
+export function SearchIcon({ size = 18, color, className, ...props }: IconProps) {
+  return (
+    <svg {...baseProps(size, color)} className={className} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" {...props}>
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}

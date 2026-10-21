@@ -924,6 +924,32 @@ export default function ClientDashboardPage() {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="page-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", padding: "2rem" }}>
+        <div className="card" style={{ maxWidth: "480px", textAlign: "center", padding: "2.5rem 2rem" }}>
+          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🎓</div>
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--brand-primary)", marginBottom: "0.5rem" }}>
+            {lang === "hi" ? "लॉगिन आवश्यक है" : "Authentication Required"}
+          </h2>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
+            {lang === "hi"
+              ? "अपने परामर्श सत्र, नोट्स और संसाधनों तक पहुंचने के लिए कृपया लॉगिन करें।"
+              : "Please sign in to access your appointments, private guidance notes, and student resources."}
+          </p>
+          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+            <Link href="/login?redirect=/dashboard/client" className="btn btn-primary btn-sm">
+              {lang === "hi" ? "लॉगिन करें" : "Sign In"}
+            </Link>
+            <Link href="/" className="btn btn-outline btn-sm">
+              {lang === "hi" ? "होमपेज पर जाएं" : "Return to Home"}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page-wrapper">
       <div className="dash-layout">

@@ -1355,6 +1355,32 @@ export default function CounsellorDashboardPage() {
     );
   }
 
+  if (!user || (role !== "counsellor" && role !== "admin")) {
+    return (
+      <div className="page-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", padding: "2rem" }}>
+        <div className="card" style={{ maxWidth: "480px", textAlign: "center", padding: "2.5rem 2rem" }}>
+          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🩺</div>
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--brand-primary)", marginBottom: "0.5rem" }}>
+            {lang === "hi" ? "काउंसलर पहुंच प्रतिबंधित" : "Counsellor Access Restricted"}
+          </h2>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
+            {lang === "hi"
+              ? "यह क्षेत्र केवल अधिकृत परामर्शदाताओं के लिए है। कृपया अधिकृत खाते के साथ लॉगिन करें।"
+              : "This workspace is strictly for certified counsellors. Please sign in with an authorized counsellor account."}
+          </p>
+          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+            <Link href="/login?redirect=/dashboard/counsellor" className="btn btn-primary btn-sm">
+              {lang === "hi" ? "काउंसलर लॉगिन करें" : "Sign in as Counsellor"}
+            </Link>
+            <Link href="/" className="btn btn-outline btn-sm">
+              {lang === "hi" ? "होमपेज पर जाएं" : "Return to Home"}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const filteredAppts = appointments.filter((a) => (apptFilter === "all" ? true : a.status === apptFilter));
 
   return (
