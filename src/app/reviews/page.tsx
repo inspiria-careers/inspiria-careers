@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
 import { CalendarIcon, SparklesIcon } from "@/components/Icons";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 
 export interface ReviewItem {
   id: string;
@@ -348,8 +349,20 @@ export default function ReviewsPage() {
           )}
 
           {loading ? (
-            <div style={{ display: "flex", justifyContent: "center", padding: "4rem 0" }}>
-              <div className="spinner" />
+            <div style={{ display: "flex", justifyContent: "center", padding: "2.5rem 0" }}>
+              <CircularProgressLoader
+                size={106}
+                title={
+                  lang === "hi"
+                    ? "समीक्षाएं लोड हो रही हैं..."
+                    : "Loading Verified Reviews..."
+                }
+                subtitle={
+                  lang === "hi"
+                    ? "छात्रों के अनुभव प्राप्त किए जा रहे हैं..."
+                    : "Fetching student & parent testimonials..."
+                }
+              />
             </div>
           ) : reviews.length === 0 ? (
             <div className="empty-state card" style={{ maxWidth: "600px", margin: "0 auto" }}>

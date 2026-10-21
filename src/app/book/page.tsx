@@ -21,6 +21,7 @@ import IntakeModal from "@/components/IntakeModal";
 import type { ClientIntake } from "@/types";
 import { CalendarIcon, CreditCardIcon, LockIcon, CertificateIcon } from "@/components/Icons";
 import { checkClientRateLimit } from "@/lib/clientRateLimit";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 
 export default function BookAppointmentPage() {
   const { user } = useAuth();
@@ -285,13 +286,13 @@ export default function BookAppointmentPage() {
       return;
     }
 
-    // Rate Limit: Maximum 5 requests per minute
-    const rl = checkClientRateLimit("booking", 5, 60000);
+    // Rate Limit: Maximum 15 attempts per minute (prevents automated button spam while protecting genuine clients)
+    const rl = checkClientRateLimit("booking", 15, 60000);
     if (!rl.allowed) {
       setErrorMsg(
         lang === "hi"
-          ? `अनुरोध सीमा: आप प्रति मिनट अधिकतम 5 बार बुकिंग का प्रयास कर सकते हैं। कृपया ${rl.retryAfterSec} सेकंड बाद पुनः प्रयास करें।`
-          : `Rate limit reached: Maximum 5 booking attempts allowed per minute. Please wait ${rl.retryAfterSec} seconds.`
+          ? `अनुरोध सीमा: आप प्रति मिनट अधिकतम 15 बार बुकिंग का प्रयास कर सकते हैं। कृपया ${rl.retryAfterSec} सेकंड बाद पुनः प्रयास करें।`
+          : `Rate limit reached: Maximum 15 booking attempts allowed per minute. Please wait ${rl.retryAfterSec} seconds.`
       );
       return;
     }
@@ -747,6 +748,24 @@ export default function BookAppointmentPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Branded Circular Progress Loader Modal (Circle with Logo & Percentage) ── */}
+      {status === "submitting" && (
+        <CircularProgressLoader
+          isModal={true}
+          size={124}
+          title={
+            lang === "hi"
+              ? "अपॉइंटमेंट सुरक्षित किया जा रहा है..."
+              : "Securing Consultation Slot..."
+          }
+          subtitle={
+            lang === "hi"
+              ? "कैलेंडर आरक्षित हो रहा है, कृपया प्रतीक्षा करें..."
+              : "Reserving your time slot, please wait a moment..."
+          }
+        />
+      )}
 
       {/* Mandatory Intake Form & Informed Consent Modal */}
       <IntakeModal

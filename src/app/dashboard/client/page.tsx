@@ -26,6 +26,7 @@ import ImageUploader from "@/components/ImageUploader";
 import IntakeModal from "@/components/IntakeModal";
 import MessagingPanel from "@/components/MessagingPanel";
 import SessionFeedbackModal from "@/components/SessionFeedbackModal";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 import { t } from "@/translations";
 import type { ClientTask, JournalEntry, ResourceItem, ClientIntake, ReminderPreference } from "@/types";
 
@@ -910,7 +911,15 @@ export default function ClientDashboardPage() {
   if (authLoading) {
     return (
       <div className="page-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
-        <div className="spinner" />
+        <CircularProgressLoader
+          size={110}
+          title={lang === "hi" ? "छात्र डैशबोर्ड लोड हो रहा है..." : "Loading Student Portal..."}
+          subtitle={
+            lang === "hi"
+              ? "परामर्श सत्र और व्यक्तिगत डेटा लोड हो रहा है..."
+              : "Syncing consultations & guidance materials..."
+          }
+        />
       </div>
     );
   }
@@ -1032,7 +1041,11 @@ export default function ClientDashboardPage() {
 
                 {loadingAppts ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-                    <div className="spinner" />
+                    <CircularProgressLoader
+                      size={84}
+                      title="सत्र लोड हो रहे हैं..."
+                      subtitle="Fetching scheduled consultations..."
+                    />
                   </div>
                 ) : appointments.length === 0 ? (
                   <div className="empty-state">
@@ -1828,7 +1841,11 @@ export default function ClientDashboardPage() {
                 </h3>
                 {loadingNotes ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-                    <div className="spinner" />
+                    <CircularProgressLoader
+                      size={84}
+                      title="नोट्स लोड हो रहे हैं..."
+                      subtitle="Fetching personal guidance notes..."
+                    />
                   </div>
                 ) : notesList.length === 0 ? (
                   <div className="empty-state">
@@ -1930,7 +1947,11 @@ export default function ClientDashboardPage() {
                 </h3>
                 {loadingDocs ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-                    <div className="spinner" />
+                    <CircularProgressLoader
+                      size={84}
+                      title="दस्तावेज़ लोड हो रहे हैं..."
+                      subtitle="Fetching uploaded files..."
+                    />
                   </div>
                 ) : docsList.length === 0 ? (
                   <div className="empty-state">

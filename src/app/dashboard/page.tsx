@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 
 export default function DashboardIndexPage() {
   const router = useRouter();
@@ -25,8 +26,12 @@ export default function DashboardIndexPage() {
   }, [user, role, loading, router]);
 
   return (
-    <div className="page-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
-      <div className="spinner" />
+    <div className="page-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "65vh" }}>
+      <CircularProgressLoader
+        size={110}
+        title="डैशबोर्ड तैयार हो रहा है..."
+        subtitle="Opening your personalized workspace..."
+      />
     </div>
   );
 }

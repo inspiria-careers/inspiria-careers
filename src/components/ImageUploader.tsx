@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useRef } from "react";
 import { compressImage } from "@/lib/imageUtils";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 
 interface ImageUploaderProps {
   label: string;
@@ -129,7 +130,26 @@ export default function ImageUploader({
         </div>
       )}
 
-      {displayValue ? (
+      {processing ? (
+        <div
+          style={{
+            padding: "1.25rem",
+            background: "var(--surface-2)",
+            borderRadius: "var(--radius)",
+            border: "1px dashed var(--brand-primary)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <CircularProgressLoader
+            size={88}
+            durationMs={1800}
+            title="तस्वीर तैयार की जा रही है..."
+            subtitle="Optimizing and compressing file..."
+          />
+        </div>
+      ) : displayValue ? (
         <div
           style={{
             display: "flex",
@@ -175,7 +195,7 @@ export default function ImageUploader({
                 onClick={() => fileInputRef.current?.click()}
                 disabled={processing}
               >
-                {processing ? "Processing..." : "Change Image"}
+                Change Image
               </button>
               {onRemove && (
                 <button
@@ -223,10 +243,10 @@ export default function ImageUploader({
           }}
         >
           <div style={{ fontSize: compact ? "1.5rem" : "2rem", marginBottom: "0.25rem" }}>
-            {processing ? "⏳" : "📤"}
+            📤
           </div>
           <div style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--text)" }}>
-            {processing ? "Optimizing image..." : "Click to select or drag & drop"}
+            Click to select or drag & drop
           </div>
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
             {displayHelp || `${acceptedTypes.map((t) => t.split("/")[1].toUpperCase()).join(", ")} up to ${maxSizeMB} MB`}

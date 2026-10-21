@@ -5,6 +5,7 @@ import { collection, getDocs, query, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 import type { WorkshopItem, WorkshopRegistration } from "@/types";
 
 export default function WorkshopsPage() {
@@ -61,9 +62,16 @@ export default function WorkshopsPage() {
           </div>
 
           {loading ? (
-            <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
-              <div className="spinner" style={{ margin: "0 auto 1rem" }} />
-              {t("loading", lang)}
+            <div style={{ display: "flex", justifyContent: "center", padding: "3rem 0" }}>
+              <CircularProgressLoader
+                size={106}
+                title={lang === "hi" ? "कार्यशालाएं लोड हो रही हैं..." : "Loading Workshops..."}
+                subtitle={
+                  lang === "hi"
+                    ? "आगामी वेबिनार और समूह सत्र प्राप्त किए जा रहे हैं..."
+                    : "Fetching upcoming webinars and group sessions..."
+                }
+              />
             </div>
           ) : workshops.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>

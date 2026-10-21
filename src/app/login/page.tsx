@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 
 function LoginForm() {
   const router = useRouter();
@@ -203,6 +204,20 @@ function LoginForm() {
           </Link>
         </div>
       </div>
+
+      {loading && (
+        <CircularProgressLoader
+          isModal={true}
+          size={116}
+          durationMs={1800}
+          title={lang === "hi" ? "लॉगिन किया जा रहा है..." : "Signing You In..."}
+          subtitle={
+            lang === "hi"
+              ? "क्रेडेंशियल्स सत्यापित हो रहे हैं..."
+              : "Verifying credentials & preparing your dashboard..."
+          }
+        />
+      )}
     </div>
   );
 }
@@ -212,7 +227,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="page-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "80vh" }}>
-          <div className="spinner" />
+          <CircularProgressLoader size={106} />
         </div>
       }
     >

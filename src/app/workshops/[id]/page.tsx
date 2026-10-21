@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 import { validateUtr, formatInr, generateReceiptNumber } from "@/lib/paymentUtils";
 import type { WorkshopItem, WorkshopRegistration } from "@/types";
 
@@ -71,7 +72,15 @@ export default function WorkshopDetailPage({
   if (loading) {
     return (
       <div className="page-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
-        <div className="spinner" />
+        <CircularProgressLoader
+          size={110}
+          title={lang === "hi" ? "कार्यशाला विवरण लोड हो रहा है..." : "Loading Workshop..."}
+          subtitle={
+            lang === "hi"
+              ? "पंजीकरण स्थिति और विवरण प्राप्त किए जा रहे हैं..."
+              : "Checking seat availability & workshop curriculum..."
+          }
+        />
       </div>
     );
   }

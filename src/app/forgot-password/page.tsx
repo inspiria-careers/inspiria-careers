@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 
 export default function ForgotPasswordPage() {
   const { sendPasswordReset } = useAuth();
@@ -100,6 +101,19 @@ export default function ForgotPasswordPage() {
           </form>
         )}
       </div>
+
+      {status === "submitting" && (
+        <CircularProgressLoader
+          isModal={true}
+          size={116}
+          title={lang === "hi" ? "पासवर्ड रीसेट लिंक भेजा जा रहा है" : "Sending Password Reset Link"}
+          subtitle={
+            lang === "hi"
+              ? "पंजीकृत ईमेल सत्यापित किया जा रहा है..."
+              : "Verifying account credentials & dispatching reset email..."
+          }
+        />
+      )}
     </div>
   );
 }

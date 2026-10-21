@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
 import { CalendarIcon, SparklesIcon, DynamicVectorIcon } from "@/components/Icons";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 
 function EmptyState({ message }: { message: string }) {
   return (
@@ -20,8 +21,12 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <main className="page-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div className="spinner" />
+      <main className="page-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "70vh" }}>
+        <CircularProgressLoader
+          size={114}
+          title={lang === "hi" ? "इनस्पिरिया करियर में आपका स्वागत है" : "Welcome to Inspiria Careers"}
+          subtitle={lang === "hi" ? "साइट लोड हो रही है, कृपया प्रतीक्षा करें..." : "Loading guidance portal, please wait..."}
+        />
       </main>
     );
   }

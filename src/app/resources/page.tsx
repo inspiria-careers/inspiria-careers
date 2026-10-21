@@ -5,6 +5,7 @@ import { collection, getDocs, query, where, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 import type { ResourceItem } from "@/types";
 
 export default function ResourcesPage() {
@@ -86,9 +87,16 @@ export default function ResourcesPage() {
           </div>
 
           {loading ? (
-            <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
-              <div className="spinner" style={{ margin: "0 auto 1rem" }} />
-              {t("loading", lang)}
+            <div style={{ display: "flex", justifyContent: "center", padding: "3rem 0" }}>
+              <CircularProgressLoader
+                size={106}
+                title={lang === "hi" ? "संसाधन लोड हो रहे हैं..." : "Loading Resources..."}
+                subtitle={
+                  lang === "hi"
+                    ? "मार्गदर्शन सामग्री और अध्ययन पत्रक प्राप्त किए जा रहे हैं..."
+                    : "Fetching guidance worksheets and study resources..."
+                }
+              />
             </div>
           ) : filtered.length === 0 ? (
             <div className="card" style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>

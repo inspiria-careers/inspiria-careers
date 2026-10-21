@@ -6,6 +6,7 @@ import { collection, query, where, getDocs, doc, getDoc } from "firebase/firesto
 import { db } from "@/lib/firebase";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 
 interface PostDetail {
   id: string;
@@ -72,7 +73,15 @@ export default function SinglePostPage() {
   if (loading) {
     return (
       <div className="page-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "70vh" }}>
-        <div className="spinner" />
+        <CircularProgressLoader
+          size={110}
+          title={lang === "hi" ? "लेख लोड हो रहा है..." : "Loading Article..."}
+          subtitle={
+            lang === "hi"
+              ? "सामग्री तैयार की जा रही है..."
+              : "Preparing article content & resources..."
+          }
+        />
       </div>
     );
   }

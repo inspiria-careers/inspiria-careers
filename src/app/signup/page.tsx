@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSite } from "@/contexts/SiteContext";
 import { t } from "@/translations";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -220,6 +221,20 @@ export default function SignupPage() {
           </Link>
         </div>
       </div>
+
+      {loading && (
+        <CircularProgressLoader
+          isModal={true}
+          size={116}
+          durationMs={2000}
+          title={lang === "hi" ? "नया खाता बनाया जा रहा है..." : "Creating Your Account..."}
+          subtitle={
+            lang === "hi"
+              ? "प्रोफ़ाइल पंजीकृत की जा रही है..."
+              : "Setting up your student guidance profile..."
+          }
+        />
+      )}
     </div>
   );
 }

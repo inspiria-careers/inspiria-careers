@@ -8,6 +8,7 @@ import { useSite, SiteProfile, ServiceItem, GalleryItem } from "@/contexts/SiteC
 import { logAuditEvent, AuditLogEntry } from "@/lib/auditLog";
 import { formatInr } from "@/lib/paymentUtils";
 import ImageUploader from "@/components/ImageUploader";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 import { t } from "@/translations";
 
 interface FirestoreUser {
@@ -458,7 +459,15 @@ export default function AdminDashboardPage() {
   if (authLoading) {
     return (
       <div className="page-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
-        <div className="spinner" />
+        <CircularProgressLoader
+          size={110}
+          title={lang === "hi" ? "एडमिन पैनल लोड हो रहा है..." : "Loading Admin Dashboard..."}
+          subtitle={
+            lang === "hi"
+              ? "सिस्टम सेटिंग्स और सुरक्षा नियम लोड हो रहे हैं..."
+              : "Syncing portal configuration & security metrics..."
+          }
+        />
       </div>
     );
   }
@@ -579,7 +588,11 @@ export default function AdminDashboardPage() {
 
                 {loadingUsers ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-                    <div className="spinner" />
+                    <CircularProgressLoader
+                      size={84}
+                      title="उपयोगकर्ता लोड हो रहे हैं..."
+                      subtitle="Fetching user registry & credentials..."
+                    />
                   </div>
                 ) : usersList.length === 0 ? (
                   <div className="empty-state">
@@ -700,7 +713,11 @@ export default function AdminDashboardPage() {
 
                 {loadingAudit ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-                    <div className="spinner" />
+                    <CircularProgressLoader
+                      size={84}
+                      title="ऑडिट लॉग लोड हो रहे हैं..."
+                      subtitle="Fetching system activity trail..."
+                    />
                   </div>
                 ) : auditLogsList.length === 0 ? (
                   <div className="empty-state">

@@ -27,6 +27,7 @@ import AssignTaskModal from "@/components/AssignTaskModal";
 import WorkshopManager from "@/components/WorkshopManager";
 import InsightsView from "@/components/InsightsView";
 import MessagingPanel from "@/components/MessagingPanel";
+import CircularProgressLoader from "@/components/CircularProgressLoader";
 import { sendReminder } from "@/lib/reminderService";
 import { t } from "@/translations";
 import type { ResourceItem, DeletionRequest, SessionFeedback, NewsletterSubscriber } from "@/types";
@@ -1341,7 +1342,15 @@ export default function CounsellorDashboardPage() {
   if (authLoading) {
     return (
       <div className="page-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
-        <div className="spinner" />
+        <CircularProgressLoader
+          size={110}
+          title={lang === "hi" ? "काउंसलर पोर्टल लोड हो रहा है..." : "Loading Counsellor Portal..."}
+          subtitle={
+            lang === "hi"
+              ? "अपॉइंटमेंट्स और केस फाइल्स लोड हो रही हैं..."
+              : "Syncing appointments & case files..."
+          }
+        />
       </div>
     );
   }
@@ -2576,7 +2585,11 @@ export default function CounsellorDashboardPage() {
                 </h3>
                 {loadingPosts ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-                    <div className="spinner" />
+                    <CircularProgressLoader
+                      size={84}
+                      title="लेख लोड हो रहे हैं..."
+                      subtitle="Fetching published articles..."
+                    />
                   </div>
                 ) : postsList.length === 0 ? (
                   <div className="empty-state">
@@ -2668,7 +2681,11 @@ export default function CounsellorDashboardPage() {
 
                 {loadingAppts ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-                    <div className="spinner" />
+                    <CircularProgressLoader
+                      size={84}
+                      title="अपॉइंटमेंट्स लोड हो रहे हैं..."
+                      subtitle="Fetching client schedules & history..."
+                    />
                   </div>
                 ) : filteredAppts.length === 0 ? (
                   <div className="empty-state">
@@ -2952,7 +2969,11 @@ export default function CounsellorDashboardPage() {
 
                 {loadingReviews ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-                    <div className="spinner" />
+                    <CircularProgressLoader
+                      size={84}
+                      title="समीक्षाएं लोड हो रही हैं..."
+                      subtitle="Fetching client feedback & ratings..."
+                    />
                   </div>
                 ) : reviewsList.length === 0 ? (
                   <div className="empty-state">
@@ -3045,7 +3066,11 @@ export default function CounsellorDashboardPage() {
 
                 {loadingVault ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-                    <div className="spinner" />
+                    <CircularProgressLoader
+                      size={84}
+                      title="वॉल्ट लोड हो रहा है..."
+                      subtitle="Decryption & client vault sync..."
+                    />
                   </div>
                 ) : vaultItems.length === 0 ? (
                   <div className="empty-state">
@@ -3346,7 +3371,11 @@ export default function CounsellorDashboardPage() {
 
                 {loadingMessages ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-                    <div className="spinner" />
+                    <CircularProgressLoader
+                      size={84}
+                      title="संदेश लोड हो रहे हैं..."
+                      subtitle="Fetching client correspondence..."
+                    />
                   </div>
                 ) : messagesList.filter((m) => messageFilter === "all" ? true : (m.status || "unread") === messageFilter).length === 0 ? (
                   <div className="empty-state">
@@ -3584,7 +3613,11 @@ export default function CounsellorDashboardPage() {
                   {/* Table */}
                   {loadingAppts ? (
                     <div style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
-                      <div className="spinner" />
+                      <CircularProgressLoader
+                        size={84}
+                        title="भुगतान रिकॉर्ड लोड हो रहे हैं..."
+                        subtitle="Fetching transaction ledger & receipts..."
+                      />
                     </div>
                   ) : paymentFilteredAppts.length === 0 ? (
                     <div className="empty-state">
